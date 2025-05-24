@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. See [standa
 
 ## 1.0.0 (2025-05-24)
 
+## 1.0.0 (2025-05-24)
+
 ### 🎉 Initial Release
 
 **TokenForge** - A production-ready platform for creating and deploying custom tokens across multiple blockchains.
