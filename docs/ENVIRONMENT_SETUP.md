@@ -2,6 +2,12 @@
 
 This guide will help you set up all the required environment variables for TokenForge.
 
+## 📚 Related Guides
+
+- **[GET_API_KEYS_GUIDE.md](./GET_API_KEYS_GUIDE.md)** - Step-by-step instructions for obtaining every API key
+- **[API_KEYS_QUICK_REFERENCE.md](./API_KEYS_QUICK_REFERENCE.md)** - Printable checklist and quick links
+- **[COST_BREAKDOWN.md](./COST_BREAKDOWN.md)** - Detailed cost analysis and optimization strategies
+
 ## Quick Start
 
 1. Copy the example environment file:

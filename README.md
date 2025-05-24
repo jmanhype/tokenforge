@@ -151,7 +151,13 @@ terraform apply
 
 ## 📚 Documentation
 
-- [Environment Setup Guide](docs/ENVIRONMENT_SETUP.md) - Detailed guide for configuring all services
+### Setup Guides
+- [Environment Setup Guide](docs/ENVIRONMENT_SETUP.md) - Overview of environment configuration
+- [Get API Keys Guide](docs/GET_API_KEYS_GUIDE.md) - **Step-by-step instructions for every API key**
+- [Quick Reference Card](docs/API_KEYS_QUICK_REFERENCE.md) - Printable checklist with all services
+- [Cost Breakdown](docs/COST_BREAKDOWN.md) - Detailed pricing and optimization strategies
+
+### Deployment & Development
 - [Deployment Guide](docs/DEPLOYMENT.md) - Step-by-step production deployment
 - [Production Roadmap](PRODUCTION_ROADMAP.md) - Implementation phases and timeline
 - [API Documentation](docs/API.md) - Backend API reference
