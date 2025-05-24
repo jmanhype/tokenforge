@@ -244,7 +244,7 @@ export const fetchTokenAnalytics = internalAction({
       return result;
     } catch (error) {
       console.error("Blockchain explorer API error:", error);
-      throw new ConvexError(`Failed to fetch token analytics: ${error.message}`);
+      throw new ConvexError(`Failed to fetch token analytics: ${(error as Error).message}`);
     }
   }
 });
@@ -328,7 +328,7 @@ export const fetchRecentTransactions = internalAction({
       return result;
     } catch (error) {
       console.error("Blockchain explorer API error:", error);
-      throw new ConvexError(`Failed to fetch recent transactions: ${error.message}`);
+      throw new ConvexError(`Failed to fetch recent transactions: ${(error as Error).message}`);
     }
   }
 });
@@ -413,7 +413,7 @@ export const fetchTransactionVolume = internalAction({
       }
     } catch (error) {
       console.error("Blockchain explorer API error:", error);
-      throw new ConvexError(`Failed to fetch transaction volume: ${error.message}`);
+      throw new ConvexError(`Failed to fetch transaction volume: ${(error as Error).message}`);
     }
   }
 });

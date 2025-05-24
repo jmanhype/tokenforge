@@ -62,8 +62,9 @@ TokenForge is a production-ready platform for creating and deploying custom toke
 
 3. **Configure environment**
    ```bash
-   cp .env.example .env.local
-   # Edit .env.local with your credentials
+   cp .env.example .env
+   # Edit .env with your credentials
+   # See docs/ENVIRONMENT_SETUP.md for detailed setup
    ```
 
 4. **Start development servers**
@@ -147,6 +148,14 @@ terraform init
 terraform plan
 terraform apply
 ```
+
+## 📚 Documentation
+
+- [Environment Setup Guide](docs/ENVIRONMENT_SETUP.md) - Detailed guide for configuring all services
+- [Deployment Guide](docs/DEPLOYMENT.md) - Step-by-step production deployment
+- [Production Roadmap](PRODUCTION_ROADMAP.md) - Implementation phases and timeline
+- [API Documentation](docs/API.md) - Backend API reference
+- [Smart Contract Docs](contracts/README.md) - Contract specifications
 
 ## 📊 Features in Detail
 

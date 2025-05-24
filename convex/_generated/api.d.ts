@@ -13,11 +13,11 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
-import type * as analytics_blockchain_explorers from "../analytics/blockchain-explorers.js";
+import type * as analytics_blockchainExplorers from "../analytics/blockchainExplorers.js";
 import type * as analytics_cache from "../analytics/cache.js";
 import type * as analytics_coingecko from "../analytics/coingecko.js";
 import type * as analytics_geckoterminal from "../analytics/geckoterminal.js";
-import type * as analytics_rate_limiter from "../analytics/rate-limiter.js";
+import type * as analytics_rateLimiter from "../analytics/rateLimiter.js";
 import type * as analytics from "../analytics.js";
 import type * as auth from "../auth.js";
 import type * as blockchain_ethereum from "../blockchain/ethereum.js";
@@ -43,11 +43,11 @@ import type * as social from "../social.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
-  "analytics/blockchain-explorers": typeof analytics_blockchain_explorers;
+  "analytics/blockchainExplorers": typeof analytics_blockchainExplorers;
   "analytics/cache": typeof analytics_cache;
   "analytics/coingecko": typeof analytics_coingecko;
   "analytics/geckoterminal": typeof analytics_geckoterminal;
-  "analytics/rate-limiter": typeof analytics_rate_limiter;
+  "analytics/rateLimiter": typeof analytics_rateLimiter;
   analytics: typeof analytics;
   auth: typeof auth;
   "blockchain/ethereum": typeof blockchain_ethereum;

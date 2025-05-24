@@ -45,14 +45,14 @@ export const shareOnLaunch = internalAction({
       // Twitter
       if (process.env.TWITTER_API_KEY) {
         sharePromises.push(
-          postToTwitter(ctx, { coin: coinData, type: "launch" })
-            .then((result) => ({
+          ctx.runAction(internal.social.twitter.postToTwitter, { coin: coinData, type: "launch" })
+            .then((result: any) => ({
               platform: "twitter" as const,
               success: true,
               response: `Tweet posted: ${result.url}`,
               postId: result.tweetId,
             }))
-            .catch((error) => ({
+            .catch((error: any) => ({
               platform: "twitter" as const,
               success: false,
               response: `Error: ${error.message}`,
@@ -64,14 +64,14 @@ export const shareOnLaunch = internalAction({
       // Discord
       if (process.env.DISCORD_WEBHOOK_URL) {
         sharePromises.push(
-          postToDiscord(ctx, { coin: coinData, type: "launch" })
-            .then((result) => ({
+          ctx.runAction(internal.social.discord.postToDiscord, { coin: coinData, type: "launch" })
+            .then((result: any) => ({
               platform: "discord" as const,
               success: true,
               response: `Discord message posted at ${result.timestamp}`,
               postId: result.timestamp,
             }))
-            .catch((error) => ({
+            .catch((error: any) => ({
               platform: "discord" as const,
               success: false,
               response: `Error: ${error.message}`,
@@ -83,14 +83,14 @@ export const shareOnLaunch = internalAction({
       // Telegram
       if (process.env.TELEGRAM_BOT_TOKEN) {
         sharePromises.push(
-          postToTelegram(ctx, { coin: coinData, type: "launch" })
-            .then((result) => ({
+          ctx.runAction(internal.social.telegram.postToTelegram, { coin: coinData, type: "launch" })
+            .then((result: any) => ({
               platform: "telegram" as const,
               success: true,
               response: `Telegram message posted: ${result.messageId}`,
               postId: String(result.messageId),
             }))
-            .catch((error) => ({
+            .catch((error: any) => ({
               platform: "telegram" as const,
               success: false,
               response: `Error: ${error.message}`,
@@ -115,7 +115,7 @@ export const shareOnLaunch = internalAction({
       }
 
       // Log summary
-      const successCount = results.filter(r => r.success).length;
+      const successCount = results.filter((r: any) => r.success).length;
       console.log(`Social sharing completed: ${successCount}/${results.length} successful`);
 
     } catch (error) {
@@ -161,8 +161,8 @@ export const shareMilestone = internalAction({
       // Twitter - milestones get good engagement
       if (process.env.TWITTER_API_KEY) {
         sharePromises.push(
-          postToTwitter(ctx, { coin: coinData, type: "milestone" })
-            .then((result) => ({
+          ctx.runAction(internal.social.twitter.postToTwitter, { coin: coinData, type: "milestone" })
+            .then((result: any) => ({
               platform: "twitter" as const,
               success: true,
               response: `Milestone tweet posted: ${result.url}`,
@@ -178,8 +178,8 @@ export const shareMilestone = internalAction({
       // Discord - community loves milestones
       if (process.env.DISCORD_WEBHOOK_URL) {
         sharePromises.push(
-          postToDiscord(ctx, { coin: coinData, type: "milestone" })
-            .then((result) => ({
+          ctx.runAction(internal.social.discord.postToDiscord, { coin: coinData, type: "milestone" })
+            .then((result: any) => ({
               platform: "discord" as const,
               success: true,
               response: `Discord milestone posted`,
@@ -195,8 +195,8 @@ export const shareMilestone = internalAction({
       // Telegram - optional for milestones
       if (process.env.TELEGRAM_BOT_TOKEN && args.milestone.includes("1000")) {
         sharePromises.push(
-          postToTelegram(ctx, { coin: coinData, type: "milestone" })
-            .then((result) => ({
+          ctx.runAction(internal.social.telegram.postToTelegram, { coin: coinData, type: "milestone" })
+            .then((result: any) => ({
               platform: "telegram" as const,
               success: true,
               response: `Telegram milestone posted: ${result.messageId}`,

@@ -162,7 +162,7 @@ export const fetchTokenPools = internalAction({
       return result;
     } catch (error) {
       console.error("GeckoTerminal API error:", error);
-      throw new ConvexError(`Failed to fetch token pools: ${error.message}`);
+      throw new ConvexError(`Failed to fetch token pools: ${(error as Error).message}`);
     }
   }
 });
@@ -231,7 +231,7 @@ export const fetchPoolData = internalAction({
       return result;
     } catch (error) {
       console.error("GeckoTerminal API error:", error);
-      throw new ConvexError(`Failed to fetch pool data: ${error.message}`);
+      throw new ConvexError(`Failed to fetch pool data: ${(error as Error).message}`);
     }
   }
 });
@@ -289,7 +289,7 @@ export const fetchPoolOHLCV = internalAction({
       return result;
     } catch (error) {
       console.error("GeckoTerminal API error:", error);
-      throw new ConvexError(`Failed to fetch OHLCV data: ${error.message}`);
+      throw new ConvexError(`Failed to fetch OHLCV data: ${(error as Error).message}`);
     }
   }
 });
@@ -334,7 +334,7 @@ export const fetchPoolTrades = internalAction({
       };
     } catch (error) {
       console.error("GeckoTerminal API error:", error);
-      throw new ConvexError(`Failed to fetch pool trades: ${error.message}`);
+      throw new ConvexError(`Failed to fetch pool trades: ${(error as Error).message}`);
     }
   }
 });
@@ -391,7 +391,7 @@ export const fetchTrendingPools = internalAction({
       return result;
     } catch (error) {
       console.error("GeckoTerminal API error:", error);
-      throw new ConvexError(`Failed to fetch trending pools: ${error.message}`);
+      throw new ConvexError(`Failed to fetch trending pools: ${(error as Error).message}`);
     }
   }
 });

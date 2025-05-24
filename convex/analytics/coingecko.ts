@@ -115,7 +115,7 @@ export const fetchTokenPriceData = internalAction({
       return result;
     } catch (error) {
       console.error("CoinGecko API error:", error);
-      throw new ConvexError(`Failed to fetch token price data: ${error.message}`);
+      throw new ConvexError(`Failed to fetch token price data: ${(error as Error).message}`);
     }
   }
 });
@@ -173,7 +173,7 @@ export const fetchTokenInfo = internalAction({
       return result;
     } catch (error) {
       console.error("CoinGecko API error:", error);
-      throw new ConvexError(`Failed to fetch token info: ${error.message}`);
+      throw new ConvexError(`Failed to fetch token info: ${(error as Error).message}`);
     }
   }
 });
@@ -228,7 +228,7 @@ export const fetchHistoricalPrices = internalAction({
       return result;
     } catch (error) {
       console.error("CoinGecko API error:", error);
-      throw new ConvexError(`Failed to fetch historical prices: ${error.message}`);
+      throw new ConvexError(`Failed to fetch historical prices: ${(error as Error).message}`);
     }
   }
 });

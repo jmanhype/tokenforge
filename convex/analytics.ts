@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation, internalMutation, internalAction } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { internal, api } from "./_generated/api";
 
 // Get analytics for a specific coin
 export const getCoinAnalytics = query({
@@ -110,22 +110,23 @@ export const fetchRealTimeAnalytics = internalAction({
   args: {
     coinId: v.id("memeCoins"),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<{ success: boolean; data?: any; error?: string; cachedData?: any }> => {
     // Get coin details
-    const coin = await ctx.runQuery(internal.memeCoins.getById, { coinId: args.coinId });
+    // @ts-ignore - Type instantiation depth issue
+    const coin = await ctx.runQuery(api.memeCoins.getById, { coinId: args.coinId });
     if (!coin) {
       throw new Error("Coin not found");
     }
 
     // Get deployment details
-    const deployment = await ctx.runQuery(internal.memeCoins.getDeployment, { coinId: args.coinId });
+    const deployment: any = await ctx.runQuery(api.memeCoins.getDeployment, { coinId: args.coinId });
     if (!deployment || !deployment.contractAddress) {
       throw new Error("Coin not deployed");
     }
 
     try {
       // Fetch data from multiple sources in parallel
-      const [priceData, dexData, blockchainData] = await Promise.all([
+      const [priceData, dexData, blockchainData]: [any, any, any] = await Promise.all([
         // Fetch price data from CoinGecko
         ctx.runAction(internal.analytics.coingecko.fetchTokenPriceData, {
           contractAddress: deployment.contractAddress,
@@ -178,14 +179,14 @@ export const fetchRealTimeAnalytics = internalAction({
       console.error("Failed to fetch real-time analytics:", error);
       
       // In case of API failures, try to use cached data
-      const latestAnalytics = await ctx.runQuery(internal.analytics.getLatestAnalytics, {
+      const latestAnalytics: any = await ctx.runQuery(api.analytics.getLatestAnalytics, {
         coinId: args.coinId
       });
       
       if (latestAnalytics) {
         return {
           success: false,
-          error: error.message,
+          error: (error as Error).message,
           cachedData: latestAnalytics
         };
       }
@@ -198,9 +199,9 @@ export const fetchRealTimeAnalytics = internalAction({
 // Batch update analytics for all deployed coins
 export const batchUpdateAnalytics = internalAction({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<{ total: number; successful: number; failed: number; results: any[] }> => {
     // Get all deployed coins
-    const deployedCoins = await ctx.runQuery(internal.memeCoins.getAllDeployedCoins, {});
+    const deployedCoins: any[] = await ctx.runQuery(api.memeCoins.getAllDeployedCoins, {});
     
     const results = [];
     
@@ -210,7 +211,7 @@ export const batchUpdateAnalytics = internalAction({
       const batch = deployedCoins.slice(i, i + batchSize);
       
       const batchResults = await Promise.allSettled(
-        batch.map(coin => 
+        batch.map((coin: any) => 
           ctx.runAction(internal.analytics.fetchRealTimeAnalytics, {
             coinId: coin._id
           })
@@ -261,19 +262,19 @@ export const getHistoricalPrices = internalAction({
     coinId: v.id("memeCoins"),
     days: v.optional(v.number())
   },
-  handler: async (ctx, args) => {
-    const coin = await ctx.runQuery(internal.memeCoins.getById, { coinId: args.coinId });
+  handler: async (ctx, args): Promise<any> => {
+    const coin = await ctx.runQuery(api.memeCoins.getById, { coinId: args.coinId });
     if (!coin) {
       throw new Error("Coin not found");
     }
 
-    const deployment = await ctx.runQuery(internal.memeCoins.getDeployment, { coinId: args.coinId });
+    const deployment: any = await ctx.runQuery(api.memeCoins.getDeployment, { coinId: args.coinId });
     if (!deployment || !deployment.contractAddress) {
       throw new Error("Coin not deployed");
     }
 
     try {
-      const historicalData = await ctx.runAction(internal.analytics.coingecko.fetchHistoricalPrices, {
+      const historicalData: any = await ctx.runAction(internal.analytics.coingecko.fetchHistoricalPrices, {
         contractAddress: deployment.contractAddress,
         blockchain: deployment.blockchain,
         days: args.days || 7
@@ -292,19 +293,19 @@ export const getDEXPools = internalAction({
   args: {
     coinId: v.id("memeCoins")
   },
-  handler: async (ctx, args) => {
-    const coin = await ctx.runQuery(internal.memeCoins.getById, { coinId: args.coinId });
+  handler: async (ctx, args): Promise<any> => {
+    const coin = await ctx.runQuery(api.memeCoins.getById, { coinId: args.coinId });
     if (!coin) {
       throw new Error("Coin not found");
     }
 
-    const deployment = await ctx.runQuery(internal.memeCoins.getDeployment, { coinId: args.coinId });
+    const deployment: any = await ctx.runQuery(api.memeCoins.getDeployment, { coinId: args.coinId });
     if (!deployment || !deployment.contractAddress) {
       throw new Error("Coin not deployed");
     }
 
     try {
-      const poolsData = await ctx.runAction(internal.analytics.geckoterminal.fetchTokenPools, {
+      const poolsData: any = await ctx.runAction(internal.analytics.geckoterminal.fetchTokenPools, {
         contractAddress: deployment.contractAddress,
         blockchain: deployment.blockchain
       });
@@ -320,14 +321,14 @@ export const getDEXPools = internalAction({
 // Clear expired cache entries (to be called periodically)
 export const clearAnalyticsCache = internalAction({
   args: {},
-  handler: async (ctx) => {
-    const results = await Promise.all([
+  handler: async (ctx): Promise<{ totalCleared: number; services: { coingecko: number; geckoterminal: number; blockchainExplorers: number } }> => {
+    const results: any[] = await Promise.all([
       ctx.runAction(internal.analytics.coingecko.clearExpiredCache, {}),
       ctx.runAction(internal.analytics.geckoterminal.clearExpiredCache, {}),
       ctx.runAction(internal.analytics.blockchainExplorers.clearExpiredCache, {})
     ]);
 
-    const totalCleared = results.reduce((sum, result) => sum + result.cleared, 0);
+    const totalCleared = results.reduce((sum: number, result: any) => sum + result.cleared, 0);
 
     return {
       totalCleared,

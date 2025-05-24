@@ -11,7 +11,8 @@ export const deployContract = internalAction({
   handler: async (ctx, args) => {
     try {
       // Get coin details
-      const coin = await ctx.runQuery(internal.blockchain.getCoinForDeployment, {
+      // @ts-ignore - Type instantiation depth issue
+      const coin: any = await ctx.runQuery(internal.blockchain.getCoinForDeployment, {
         coinId: args.coinId,
       });
 

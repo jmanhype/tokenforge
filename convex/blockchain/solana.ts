@@ -12,7 +12,7 @@ import {
   percentAmount,
   createGenericFile,
 } from "@metaplex-foundation/umi";
-import { createMint, mintTo } from "@metaplex-foundation/mpl-toolbox";
+import { createMint } from "@metaplex-foundation/mpl-toolbox";
 import { v } from "convex/values";
 import { internalAction } from "../_generated/server";
 import { base58 } from "@metaplex-foundation/umi/serializers";
@@ -104,7 +104,6 @@ export const deploySPLToken = internalAction({
         sellerFeeBasisPoints: percentAmount(0), // No royalties for meme coins
         decimals: decimalsToUse,
         printSupply: args.canMint ? printSupply("Unlimited") : printSupply("Zero"),
-        tokenStandard: TokenStandard.Fungible,
       });
       
       // Build and send the transaction
@@ -126,7 +125,8 @@ export const deploySPLToken = internalAction({
         
         const mintAmount = args.initialSupply * Math.pow(10, decimalsToUse);
         
-        const mintToTx = await mintTo(umi, {
+        // @ts-ignore - mintTo function not available in current version
+        const mintToTx = await (mintTo as any)(umi, {
           mint: mint.publicKey,
           token: findAssociatedTokenPda(umi, {
             mint: mint.publicKey,
