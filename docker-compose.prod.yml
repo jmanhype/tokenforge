@@ -1,0 +1,228 @@
+version: '3.8'
+
+services:
+  # Application with auto-scaling
+  app:
+    image: ${DOCKER_REGISTRY}/memecoingen:${VERSION:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    deploy:
+      replicas: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://memecoingen:${DB_PASSWORD}@postgres:5432/memecoingen_prod
+      - REDIS_URL=redis://redis:6379
+      - VITE_CONVEX_URL=${VITE_CONVEX_URL}
+      # Blockchain configs
+      - ETHEREUM_RPC_URL=${ETHEREUM_RPC_URL}
+      - BSC_RPC_URL=${BSC_RPC_URL}
+      - SOLANA_RPC_URL=${SOLANA_RPC_URL}
+      # API Keys
+      - COINGECKO_API_KEY=${COINGECKO_API_KEY}
+      - ETHERSCAN_API_KEY=${ETHERSCAN_API_KEY}
+      - BSCSCAN_API_KEY=${BSCSCAN_API_KEY}
+      # Social Media
+      - TWITTER_API_KEY=${TWITTER_API_KEY}
+      - TWITTER_API_SECRET=${TWITTER_API_SECRET}
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      # Monitoring
+      - SENTRY_DSN=${SENTRY_DSN}
+    networks:
+      - memecoingen-prod
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Nginx Load Balancer with SSL
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+    depends_on:
+      - app
+    networks:
+      - memecoingen-prod
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 5s
+
+  # Certbot for SSL renewal
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+  # PostgreSQL with replication
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: memecoingen
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: memecoingen_prod
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=en_US.utf8 --lc-ctype=en_US.utf8"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+      - ./backup:/backup
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U memecoingen"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - memecoingen-prod
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 5s
+
+  # Redis Cluster
+  redis:
+    image: redis:7-alpine
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - memecoingen-prod
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 5s
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - memecoingen-prod
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 5s
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana-dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana-datasources.yml:/etc/grafana/provisioning/datasources/prometheus.yml
+    networks:
+      - memecoingen-prod
+    depends_on:
+      - prometheus
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 5s
+
+  # Loki for log aggregation
+  loki:
+    image: grafana/loki:latest
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./loki-config.yml:/etc/loki/local-config.yaml
+      - loki_data:/loki
+    networks:
+      - memecoingen-prod
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 5s
+
+  # Promtail for log shipping
+  promtail:
+    image: grafana/promtail:latest
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - ./promtail-config.yml:/etc/promtail/config.yml
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    networks:
+      - memecoingen-prod
+    deploy:
+      mode: global
+      restart_policy:
+        condition: any
+        delay: 5s
+
+  # Backup service
+  backup:
+    image: postgres:16-alpine
+    environment:
+      PGPASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ./backup:/backup
+      - ./scripts/backup.sh:/backup.sh:ro
+    entrypoint: /bin/sh -c 'trap exit TERM; while :; do /backup.sh; sleep 86400 & wait $${!}; done;'
+    networks:
+      - memecoingen-prod
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  loki_data:
+    driver: local
+
+networks:
+  memecoingen-prod:
+    driver: overlay
+    attachable: true

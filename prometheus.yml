@@ -1,0 +1,94 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'memecoingen-monitor'
+    environment: 'production'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+# Load rules files
+rule_files:
+  - "alert_rules.yml"
+  - "recording_rules.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Node exporter for system metrics
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '([^:]+):.*'
+
+  # Application metrics
+  - job_name: 'memecoingen-app'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['app:3000']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '([^:]+):.*'
+
+  # Nginx metrics
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx:8080']
+    metrics_path: '/nginx_status'
+
+  # PostgreSQL exporter
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  # Redis exporter
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  # Blockchain metrics (custom exporter)
+  - job_name: 'blockchain'
+    scrape_interval: 60s
+    static_configs:
+      - targets: ['blockchain-exporter:9200']
+    metric_relabel_configs:
+      - source_labels: [blockchain]
+        target_label: chain
+      - source_labels: [__name__]
+        regex: 'blockchain_.*'
+        action: keep
+
+  # Docker metrics
+  - job_name: 'docker'
+    static_configs:
+      - targets: ['docker-exporter:9323']
+
+  # Alert manager metrics
+  - job_name: 'alertmanager'
+    static_configs:
+      - targets: ['alertmanager:9093']
+
+# Remote write configuration for long-term storage
+remote_write:
+  - url: 'https://prometheus-prod.memecoingen.com/api/v1/write'
+    basic_auth:
+      username: 'prometheus'
+      password_file: '/etc/prometheus/remote_write_password'
+    write_relabel_configs:
+      # Only send important metrics to remote storage
+      - source_labels: [__name__]
+        regex: '(up|memecoingen_.*|blockchain_.*|node_.*|postgres_.*)'
+        action: keep

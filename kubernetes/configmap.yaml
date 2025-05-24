@@ -1,0 +1,153 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: memecoingen-config
+  namespace: memecoingen
+data:
+  app.yaml: |
+    server:
+      port: 3000
+      host: 0.0.0.0
+      gracefulShutdownTimeout: 30000
+    
+    cors:
+      origin:
+        - https://memecoingen.com
+        - https://www.memecoingen.com
+        - https://api.memecoingen.com
+      credentials: true
+      maxAge: 86400
+    
+    rateLimit:
+      windowMs: 60000
+      max: 100
+      standardHeaders: true
+      legacyHeaders: false
+    
+    deployment:
+      maxGasPrice:
+        ethereum: 100
+        bsc: 20
+        solana: 0.01
+      retryAttempts: 3
+      retryDelay: 5000
+    
+    cache:
+      ttl: 300
+      checkPeriod: 60
+    
+    monitoring:
+      metrics:
+        enabled: true
+        path: /metrics
+      healthCheck:
+        enabled: true
+        path: /health
+    
+    logging:
+      level: info
+      format: json
+      prettyPrint: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+    
+    scrape_configs:
+    - job_name: 'memecoingen-app'
+      kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+          - memecoingen
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: kubernetes_namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        action: replace
+        target_label: kubernetes_pod_name
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: monitoring
+data:
+  memecoingen-dashboard.json: |
+    {
+      "dashboard": {
+        "title": "MemeCoinGen Production Dashboard",
+        "panels": [
+          {
+            "title": "Request Rate",
+            "targets": [
+              {
+                "expr": "sum(rate(http_requests_total{job=\"memecoingen-app\"}[5m])) by (method, status)"
+              }
+            ]
+          },
+          {
+            "title": "Response Time",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"memecoingen-app\"}[5m])) by (le))"
+              }
+            ]
+          },
+          {
+            "title": "Coin Deployments",
+            "targets": [
+              {
+                "expr": "sum(rate(memecoingen_coins_created_total[5m])) by (blockchain, status)"
+              }
+            ]
+          },
+          {
+            "title": "Error Rate",
+            "targets": [
+              {
+                "expr": "sum(rate(http_requests_total{job=\"memecoingen-app\",status=~\"5..\"}[5m])) / sum(rate(http_requests_total{job=\"memecoingen-app\"}[5m]))"
+              }
+            ]
+          },
+          {
+            "title": "Active Users",
+            "targets": [
+              {
+                "expr": "memecoingen_active_users"
+              }
+            ]
+          },
+          {
+            "title": "Database Connections",
+            "targets": [
+              {
+                "expr": "pg_stat_database_numbackends{datname=\"memecoingen\"}"
+              }
+            ]
+          }
+        ]
+      }
+    }

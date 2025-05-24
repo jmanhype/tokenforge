@@ -1,0 +1,239 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: memecoingen-app
+  namespace: memecoingen
+  labels:
+    app: memecoingen
+    component: app
+    environment: production
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: memecoingen
+      component: app
+  template:
+    metadata:
+      labels:
+        app: memecoingen
+        component: app
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: memecoingen
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+      - name: app
+        image: ghcr.io/memecoingen/app:latest
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 3000
+          protocol: TCP
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "3000"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: memecoingen-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: memecoingen-secrets
+              key: redis-url
+        - name: ETHEREUM_RPC_URL
+          valueFrom:
+            secretKeyRef:
+              name: memecoingen-secrets
+              key: ethereum-rpc-url
+        - name: BSC_RPC_URL
+          valueFrom:
+            secretKeyRef:
+              name: memecoingen-secrets
+              key: bsc-rpc-url
+        - name: SOLANA_RPC_URL
+          valueFrom:
+            secretKeyRef:
+              name: memecoingen-secrets
+              key: solana-rpc-url
+        - name: COINGECKO_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: memecoingen-secrets
+              key: coingecko-api-key
+        - name: ETHERSCAN_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: memecoingen-secrets
+              key: etherscan-api-key
+        - name: BSCSCAN_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: memecoingen-secrets
+              key: bscscan-api-key
+        - name: TWITTER_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: memecoingen-secrets
+              key: twitter-api-key
+        - name: TWITTER_API_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: memecoingen-secrets
+              key: twitter-api-secret
+        - name: DISCORD_WEBHOOK_URL
+          valueFrom:
+            secretKeyRef:
+              name: memecoingen-secrets
+              key: discord-webhook-url
+        - name: TELEGRAM_BOT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: memecoingen-secrets
+              key: telegram-bot-token
+        - name: SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              name: memecoingen-secrets
+              key: sentry-dsn
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 15"]
+        volumeMounts:
+        - name: app-config
+          mountPath: /app/config
+          readOnly: true
+      volumes:
+      - name: app-config
+        configMap:
+          name: memecoingen-config
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - memecoingen
+              topologyKey: kubernetes.io/hostname
+      tolerations:
+      - key: "app"
+        operator: "Equal"
+        value: "memecoingen"
+        effect: "NoSchedule"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: memecoingen-app
+  namespace: memecoingen
+  labels:
+    app: memecoingen
+    component: app
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
+  selector:
+    app: memecoingen
+    component: app
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: memecoingen-app
+  namespace: memecoingen
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: memecoingen-app
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+      - type: Pods
+        value: 1
+        periodSeconds: 60
+      selectPolicy: Min
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 30
+      - type: Pods
+        value: 2
+        periodSeconds: 30
+      selectPolicy: Max
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: memecoingen-app
+  namespace: memecoingen
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: memecoingen
+      component: app

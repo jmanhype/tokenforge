@@ -1,0 +1,197 @@
+groups:
+  - name: memecoingen_alerts
+    interval: 30s
+    rules:
+      # Application alerts
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{job="memecoingen-app",status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total{job="memecoingen-app"}[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} for the last 5 minutes"
+
+      - alert: HighResponseTime
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket{job="memecoingen-app"}[5m])) by (le)
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is {{ $value }}s"
+
+      - alert: DeploymentFailureRate
+        expr: |
+          (
+            sum(rate(memecoingen_coins_created_total{status="failed"}[15m]))
+            /
+            sum(rate(memecoingen_coins_created_total[15m]))
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          team: blockchain
+        annotations:
+          summary: "High deployment failure rate"
+          description: "{{ $value | humanizePercentage }} of deployments are failing"
+
+      # Infrastructure alerts
+      - alert: HighCPUUsage
+        expr: |
+          (
+            100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+          ) > 80
+        for: 10m
+        labels:
+          severity: warning
+          team: infrastructure
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is {{ $value }}%"
+
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)
+          ) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+          team: infrastructure
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is {{ $value }}%"
+
+      - alert: DiskSpaceLow
+        expr: |
+          (
+            node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}
+          ) * 100 < 15
+        for: 5m
+        labels:
+          severity: critical
+          team: infrastructure
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Only {{ $value }}% disk space remaining"
+
+      # Database alerts
+      - alert: PostgreSQLDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: database
+        annotations:
+          summary: "PostgreSQL is down"
+          description: "PostgreSQL has been down for more than 1 minute"
+
+      - alert: PostgreSQLTooManyConnections
+        expr: |
+          sum(pg_stat_database_numbackends) by (datname)
+          /
+          sum(pg_settings_max_connections) by (datname)
+          > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          team: database
+        annotations:
+          summary: "PostgreSQL has too many connections"
+          description: "{{ $value | humanizePercentage }} of max connections are in use"
+
+      - alert: PostgreSQLSlowQueries
+        expr: |
+          avg(rate(pg_stat_database_blks_hit{datname="memecoingen"}[5m])) 
+          / 
+          avg(rate(pg_stat_database_blks_read{datname="memecoingen"}[5m]) + rate(pg_stat_database_blks_hit{datname="memecoingen"}[5m])) 
+          < 0.9
+        for: 10m
+        labels:
+          severity: warning
+          team: database
+        annotations:
+          summary: "PostgreSQL cache hit ratio is low"
+          description: "Cache hit ratio is {{ $value | humanizePercentage }}"
+
+      # Redis alerts
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: cache
+        annotations:
+          summary: "Redis is down"
+          description: "Redis has been down for more than 1 minute"
+
+      - alert: RedisHighMemoryUsage
+        expr: |
+          redis_memory_used_bytes / redis_memory_max_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          team: cache
+        annotations:
+          summary: "Redis memory usage is high"
+          description: "Redis is using {{ $value | humanizePercentage }} of max memory"
+
+      # Blockchain specific alerts
+      - alert: EthereumRPCDown
+        expr: up{job="blockchain",blockchain="ethereum"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          team: blockchain
+        annotations:
+          summary: "Ethereum RPC endpoint is down"
+          description: "Cannot connect to Ethereum RPC endpoint"
+
+      - alert: HighGasPrice
+        expr: |
+          blockchain_gas_price{blockchain="ethereum"} > 100
+        for: 15m
+        labels:
+          severity: warning
+          team: blockchain
+        annotations:
+          summary: "Ethereum gas price is high"
+          description: "Gas price is {{ $value }} gwei"
+
+      # Business metrics alerts
+      - alert: LowUserActivity
+        expr: |
+          rate(memecoingen_active_users[1h]) < 10
+        for: 1h
+        labels:
+          severity: info
+          team: product
+        annotations:
+          summary: "Low user activity"
+          description: "Less than 10 active users in the last hour"
+
+      - alert: HighRefundRate
+        expr: |
+          (
+            sum(rate(memecoingen_transactions_total{type="refund"}[24h]))
+            /
+            sum(rate(memecoingen_transactions_total{type="payment"}[24h]))
+          ) > 0.05
+        for: 1h
+        labels:
+          severity: warning
+          team: finance
+        annotations:
+          summary: "High refund rate"
+          description: "Refund rate is {{ $value | humanizePercentage }} in the last 24 hours"

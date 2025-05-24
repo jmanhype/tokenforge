@@ -1,0 +1,293 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+env:
+  DOCKER_REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  DEPLOY_TIMEOUT: 600
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: memecoingen_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Run type check
+        run: npm run type-check
+
+      - name: Run unit tests
+        run: npm run test:unit
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/memecoingen_test
+
+      - name: Run integration tests
+        run: npm run test:integration
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/memecoingen_test
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Run npm audit
+        run: npm audit --production --audit-level=moderate
+
+  build:
+    name: Build Docker Image
+    needs: [test, security-scan]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.prod
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
+            VERSION=${{ steps.meta.outputs.version }}
+
+  deploy-staging:
+    name: Deploy to Staging
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    environment:
+      name: staging
+      url: https://staging.memecoingen.com
+
+    steps:
+      - name: Deploy to staging
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            cd /opt/memecoingen
+            docker compose -f docker-compose.staging.yml pull
+            docker compose -f docker-compose.staging.yml up -d --no-deps --scale app=3
+            docker system prune -f
+
+      - name: Run smoke tests
+        run: |
+          sleep 30
+          curl -f https://staging.memecoingen.com/health || exit 1
+
+  deploy-production:
+    name: Deploy to Production
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: production
+      url: https://memecoingen.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create deployment
+        uses: chrnorm/deployment-action@v2
+        id: deployment
+        with:
+          token: ${{ github.token }}
+          environment: production
+          description: 'Deploy ${{ needs.build.outputs.image-tag }}'
+
+      - name: Deploy to production (Blue-Green)
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          timeout: ${{ env.DEPLOY_TIMEOUT }}s
+          script: |
+            cd /opt/memecoingen
+            
+            # Pull new image
+            docker compose -f docker-compose.prod.yml pull app
+            
+            # Start new containers (blue)
+            docker compose -f docker-compose.prod.yml up -d --no-deps --scale app=6 app
+            
+            # Wait for health checks
+            sleep 30
+            
+            # Check new containers are healthy
+            NEW_CONTAINERS=$(docker ps --filter "label=com.docker.compose.service=app" --filter "health=healthy" -q | head -3)
+            if [ -z "$NEW_CONTAINERS" ]; then
+              echo "New containers failed health check"
+              exit 1
+            fi
+            
+            # Update load balancer to point to new containers
+            docker exec nginx nginx -s reload
+            
+            # Remove old containers
+            OLD_CONTAINERS=$(docker ps --filter "label=com.docker.compose.service=app" -q | tail -n +4)
+            if [ ! -z "$OLD_CONTAINERS" ]; then
+              docker stop $OLD_CONTAINERS
+              docker rm $OLD_CONTAINERS
+            fi
+            
+            # Clean up
+            docker system prune -f
+
+      - name: Run production tests
+        run: |
+          sleep 30
+          # Health check
+          curl -f https://memecoingen.com/health || exit 1
+          # API check
+          curl -f https://memecoingen.com/api/status || exit 1
+
+      - name: Update deployment status
+        if: always()
+        uses: chrnorm/deployment-status@v2
+        with:
+          token: ${{ github.token }}
+          deployment-id: ${{ steps.deployment.outputs.deployment_id }}
+          state: ${{ job.status }}
+          environment-url: https://memecoingen.com
+
+      - name: Notify Slack
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: 'Production deployment ${{ job.status }}'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          channel: '#deployments'
+          username: 'GitHub Actions'
+
+  rollback:
+    name: Rollback Production
+    needs: deploy-production
+    runs-on: ubuntu-latest
+    if: failure()
+    environment:
+      name: production
+
+    steps:
+      - name: Rollback deployment
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script: |
+            cd /opt/memecoingen
+            # Rollback to previous version
+            docker compose -f docker-compose.prod.yml up -d --no-deps --scale app=3 app:previous
+            docker system prune -f
+
+      - name: Notify Slack about rollback
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              text: ':warning: Production deployment rolled back',
+              channel: '#deployments',
+              username: 'GitHub Actions'
+            }
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
