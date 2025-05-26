@@ -284,3 +284,104 @@ export const recordShare = internalMutation({
   },
 });
 
+// Share update (graduation or other updates)
+export const shareUpdate = internalAction({
+  args: {
+    coinId: v.id("memeCoins"),
+    platform: v.union(v.literal("twitter"), v.literal("discord"), v.literal("telegram")),
+    messageType: v.string(),
+    customMessage: v.string(),
+  },
+  handler: async (ctx, args) => {
+    try {
+      const coin = await ctx.runQuery(internal.social.getCoinForSharing, {
+        coinId: args.coinId,
+      });
+
+      if (!coin) return;
+
+      // Convert to CoinData format
+      const coinData: CoinData = {
+        name: coin.name,
+        symbol: coin.symbol,
+        initialSupply: coin.initialSupply,
+        description: coin.description,
+        logoUrl: coin.logoUrl,
+        canMint: coin.canMint,
+        canBurn: coin.canBurn,
+        postQuantumSecurity: coin.postQuantumSecurity,
+        deployment: coin.deployment ? {
+          blockchain: coin.deployment.blockchain,
+          contractAddress: coin.deployment.contractAddress,
+          transactionHash: coin.deployment.transactionHash,
+        } : undefined,
+      };
+
+      let result;
+      
+      // Share on specified platform
+      if (args.platform === "twitter" && process.env.TWITTER_API_KEY) {
+        result = await ctx.runAction(internal.social.twitter.postToTwitter, { 
+          coin: coinData, 
+          type: "update",
+          customMessage: args.customMessage,
+        })
+          .then((res: any) => ({
+            success: true,
+            response: `Tweet posted: ${res.url}`,
+          }))
+          .catch((error) => ({
+            success: false,
+            response: `Error: ${error.message}`,
+          }));
+      } else if (args.platform === "discord" && process.env.DISCORD_WEBHOOK_URL) {
+        result = await ctx.runAction(internal.social.discord.postToDiscord, { 
+          coin: coinData, 
+          type: "update",
+          customMessage: args.customMessage,
+        })
+          .then(() => ({
+            success: true,
+            response: `Discord message posted`,
+          }))
+          .catch((error) => ({
+            success: false,
+            response: `Error: ${error.message}`,
+          }));
+      } else if (args.platform === "telegram" && process.env.TELEGRAM_BOT_TOKEN) {
+        result = await ctx.runAction(internal.social.telegram.postToTelegram, { 
+          coin: coinData, 
+          type: "update",
+          customMessage: args.customMessage,
+        })
+          .then((res: any) => ({
+            success: true,
+            response: `Telegram message posted: ${res.messageId}`,
+          }))
+          .catch((error) => ({
+            success: false,
+            response: `Error: ${error.message}`,
+          }));
+      } else {
+        result = {
+          success: false,
+          response: "Platform not configured",
+        };
+      }
+
+      // Record share attempt
+      await ctx.runMutation(internal.social.recordShare, {
+        coinId: args.coinId,
+        platform: args.platform,
+        shareType: "update",
+        message: args.customMessage,
+        success: result.success,
+        response: result.response,
+      });
+
+    } catch (error) {
+      console.error("Update sharing error:", error);
+    }
+  },
+});
+

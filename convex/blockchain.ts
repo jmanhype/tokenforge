@@ -202,6 +202,19 @@ export const getLatestAnalytics = internalQuery({
   },
 });
 
+// Internal query to get deployment by token ID
+export const getDeploymentByTokenId = internalQuery({
+  args: {
+    tokenId: v.id("memeCoins"),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("deployments")
+      .withIndex("by_coin", (q) => q.eq("coinId", args.tokenId))
+      .first();
+  },
+});
+
 // Utility functions for generating mock blockchain data
 function generateMockAddress(blockchain: string): string {
   const prefixes = {
@@ -230,3 +243,101 @@ function generateMockTxHash(): string {
   }
   return result;
 }
+
+// Execute bonding curve buy transaction
+export const executeBondingCurveBuy = internalAction({
+  args: {
+    tokenId: v.id("memeCoins"),
+    buyer: v.string(),
+    ethAmount: v.number(),
+    tokensOut: v.number(),
+  },
+  handler: async (ctx, args) => {
+    // Simulate blockchain transaction
+    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+    
+    // Generate mock transaction hash
+    const txHash = generateMockTxHash();
+    
+    // Simulate 99% success rate for bonding curve transactions
+    const success = Math.random() > 0.01;
+    
+    if (!success) {
+      throw new Error("Transaction failed");
+    }
+    
+    return txHash;
+  },
+});
+
+// Execute bonding curve sell transaction
+export const executeBondingCurveSell = internalAction({
+  args: {
+    tokenId: v.id("memeCoins"),
+    seller: v.string(),
+    tokenAmount: v.number(),
+    ethOut: v.number(),
+  },
+  handler: async (ctx, args) => {
+    // Simulate blockchain transaction
+    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+    
+    // Generate mock transaction hash
+    const txHash = generateMockTxHash();
+    
+    // Simulate 99% success rate for bonding curve transactions
+    const success = Math.random() > 0.01;
+    
+    if (!success) {
+      throw new Error("Transaction failed");
+    }
+    
+    return txHash;
+  },
+});
+
+// Create DEX pool for graduated token
+export const createDEXPool = internalAction({
+  args: {
+    tokenId: v.id("memeCoins"),
+    tokenSymbol: v.string(),
+    liquidityETH: v.number(),
+    liquidityTokens: v.number(),
+    burnTokens: v.number(),
+  },
+  handler: async (ctx, args) => {
+    // Simulate DEX pool creation
+    await new Promise(resolve => setTimeout(resolve, 3000 + Math.random() * 2000));
+    
+    // Get deployment info
+    const deployment = await ctx.runQuery(internal.blockchain.getDeploymentByTokenId, {
+      tokenId: args.tokenId,
+    });
+    
+    if (!deployment) {
+      throw new Error("Token deployment not found");
+    }
+    
+    // Generate mock pool address
+    const poolAddress = generateMockAddress(deployment.blockchain);
+    const txHash = generateMockTxHash();
+    
+    // Simulate pool creation success
+    const success = Math.random() > 0.05; // 95% success rate
+    
+    if (!success) {
+      throw new Error("Pool creation failed");
+    }
+    
+    console.log(`Created DEX pool for ${args.tokenSymbol}:
+      Pool Address: ${poolAddress}
+      Liquidity ETH: ${args.liquidityETH}
+      Liquidity Tokens: ${args.liquidityTokens}
+      Burned Tokens: ${args.burnTokens}`);
+    
+    return {
+      poolAddress,
+      txHash,
+    };
+  },
+});

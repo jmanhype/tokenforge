@@ -45,7 +45,8 @@ export const postToTelegram = internalAction({
         transactionHash: v.string(),
       })),
     }),
-    type: v.optional(v.union(v.literal("launch"), v.literal("milestone"))),
+    type: v.optional(v.union(v.literal("launch"), v.literal("milestone"), v.literal("update"))),
+    customMessage: v.optional(v.string()),
     chatId: v.optional(v.string()), // Allow custom chat ID
   },
   handler: async (ctx, args) => {
@@ -64,8 +65,8 @@ export const postToTelegram = internalAction({
       throw new Error("Telegram rate limit exceeded. Please try again later.");
     }
 
-    // Format the message
-    const message = formatTelegramMessage(args.coin as CoinData, args.type || "launch");
+    // Format the message - use custom message if provided
+    const message = args.customMessage || formatTelegramMessage(args.coin as CoinData, args.type || "launch");
 
     // Retry logic
     let lastError: Error | null = null;

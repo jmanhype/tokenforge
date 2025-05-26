@@ -45,7 +45,8 @@ export const postToTwitter = internalAction({
         transactionHash: v.string(),
       })),
     }),
-    type: v.optional(v.union(v.literal("launch"), v.literal("milestone"))),
+    type: v.optional(v.union(v.literal("launch"), v.literal("milestone"), v.literal("update"))),
+    customMessage: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // Check environment variables
@@ -61,8 +62,8 @@ export const postToTwitter = internalAction({
       throw new Error("Twitter rate limit exceeded. Please try again later.");
     }
 
-    // Format the message
-    const message = formatTwitterMessage(args.coin as CoinData, args.type || "launch");
+    // Format the message - use custom message if provided
+    const message = args.customMessage || formatTwitterMessage(args.coin as CoinData, args.type || "launch");
 
     // Retry logic
     let lastError: Error | null = null;

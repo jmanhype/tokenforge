@@ -45,7 +45,8 @@ export const postToDiscord = internalAction({
         transactionHash: v.string(),
       })),
     }),
-    type: v.optional(v.union(v.literal("launch"), v.literal("milestone"))),
+    type: v.optional(v.union(v.literal("launch"), v.literal("milestone"), v.literal("update"))),
+    customMessage: v.optional(v.string()),
     webhookUrl: v.optional(v.string()), // Allow custom webhook URL
   },
   handler: async (ctx, args) => {
@@ -61,8 +62,15 @@ export const postToDiscord = internalAction({
       throw new Error("Discord rate limit exceeded. Please try again later.");
     }
 
-    // Format the embed
-    const embed = formatDiscordEmbed(args.coin as CoinData, args.type || "launch");
+    // Format the embed - use custom message if provided
+    const embed = args.customMessage 
+      ? {
+          title: `${args.coin.name} Update`,
+          description: args.customMessage,
+          color: 0x00ff00,
+          timestamp: new Date().toISOString(),
+        }
+      : formatDiscordEmbed(args.coin as CoinData, args.type || "launch");
 
     // Prepare webhook payload
     const payload = {

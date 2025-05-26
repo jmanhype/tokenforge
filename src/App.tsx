@@ -6,9 +6,23 @@ import { Toaster } from "sonner";
 import { CoinGenerator } from "./components/CoinGenerator";
 import { Dashboard } from "./components/Dashboard";
 import { UserCoins } from "./components/UserCoins";
+import { TradingPage } from "./pages/TradingPage";
 import { useState } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/trade/:coinId" element={<TradingPage />} />
+        <Route path="/*" element={<MainApp />} />
+      </Routes>
+      <Toaster position="top-right" />
+    </BrowserRouter>
+  );
+}
+
+function MainApp() {
   const [activeTab, setActiveTab] = useState<"create" | "dashboard" | "my-coins">("create");
 
   return (
@@ -28,8 +42,6 @@ export default function App() {
       <main className="flex-1">
         <Content activeTab={activeTab} setActiveTab={setActiveTab} />
       </main>
-      
-      <Toaster position="top-right" />
     </div>
   );
 }
