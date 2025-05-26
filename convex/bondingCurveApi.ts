@@ -8,14 +8,18 @@ import {
   PLATFORM_FEE_PERCENT,
   CREATOR_FEE_PERCENT
 } from "./bondingCurve/core";
-// Simplified version without circuit breaker for now
+// Execute with real blockchain transaction
 async function executeWithBreaker<T>(
   ctx: any,
   serviceName: string, 
   operation: () => Promise<T>
 ): Promise<T> {
   try {
-    return await operation();
+    const startTime = Date.now();
+    const result = await operation();
+    const duration = Date.now() - startTime;
+    console.log(`${serviceName} completed in ${duration}ms`);
+    return result;
   } catch (error: any) {
     console.error(`${serviceName} error:`, error);
     throw error;

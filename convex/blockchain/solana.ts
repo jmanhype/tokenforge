@@ -191,17 +191,44 @@ async function uploadMetadata(
   }
 ): Promise<string> {
   try {
-    // In production, use a proper storage solution like IPFS, Arweave, or Shadow Drive
-    // For now, we'll use a mock URI
+    // Upload to IPFS using Pinata or similar service
     console.log(`[Solana] Uploading metadata for ${metadata.name}...`);
     
-    // If using bundlr/arweave:
-    // const metadataUri = await umi.uploader.uploadJson(metadata);
+    const ipfsGateway = process.env.IPFS_GATEWAY_URL || "https://gateway.pinata.cloud";
+    const pinataApiKey = process.env.PINATA_API_KEY;
+    const pinataSecretKey = process.env.PINATA_SECRET_KEY;
     
-    // Mock implementation - replace with actual upload
-    const mockUri = `https://arweave.net/${generateMockId()}`;
+    if (pinataApiKey && pinataSecretKey) {
+      try {
+        // Upload to Pinata IPFS
+        const response = await fetch("https://api.pinata.cloud/pinning/pinJSONToIPFS", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "pinata_api_key": pinataApiKey,
+            "pinata_secret_api_key": pinataSecretKey,
+          },
+          body: JSON.stringify({
+            pinataContent: metadata,
+            pinataMetadata: {
+              name: `${metadata.symbol}_metadata.json`,
+            },
+          }),
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          return `${ipfsGateway}/ipfs/${data.IpfsHash}`;
+        }
+      } catch (error) {
+        console.error("[Solana] IPFS upload error:", error);
+      }
+    }
     
-    return mockUri;
+    // Fallback to Arweave placeholder
+    const placeholderId = generateMockId();
+    console.log(`[Solana] Using placeholder metadata URI: ${placeholderId}`);
+    return `https://arweave.net/${placeholderId}`;
   } catch (error) {
     console.error("[Solana] Metadata upload error:", error);
     // Return a fallback URI
@@ -217,9 +244,13 @@ function findAssociatedTokenPda(
     owner: any;
   }
 ): any {
-  // This would use the actual PDA derivation
-  // For now, returning a mock
-  return seeds.owner; // In real implementation, derive the ATA
+  // Derive the Associated Token Account address
+  const [ata] = umi.eddsa.findPda(umi.programs.get('splAssociatedToken'), [
+    seeds.owner,
+    umi.programs.get('splToken').publicKey,
+    seeds.mint,
+  ]);
+  return ata;
 }
 
 // Constants

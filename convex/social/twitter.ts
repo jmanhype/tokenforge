@@ -139,16 +139,15 @@ async function simulateTwitterPost(message: string, imageUrl?: string): Promise<
   return { id: tweet.data.id };
   */
   
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
+  // For deployment without twitter-api-v2 dependency, return placeholder
+  // In production with package installed, this would post to Twitter
+  console.log("Twitter post:", message);
+  if (imageUrl) console.log("With image:", imageUrl);
   
-  // Simulate occasional failures
-  if (Math.random() < 0.1) {
-    throw new Error("Twitter API error: Could not authenticate");
-  }
-  
-  // Return mock tweet ID
-  return { id: `${Date.now()}${Math.floor(Math.random() * 1000)}` };
+  // Return placeholder tweet ID until twitter-api-v2 is installed
+  return {
+    id: `placeholder_${Date.now()}`,
+  };
 }
 
 // Delete a tweet (useful for cleanup or moderation)

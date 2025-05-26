@@ -120,6 +120,49 @@ TELEGRAM_BOT_TOKEN=your_telegram_token
 
 ## 🚀 Deployment
 
+### Testnet Deployment (Development)
+
+```bash
+# Deploy to testnet (default)
+npm run deploy:testnet
+```
+
+### Mainnet Deployment
+
+#### 1. Pre-deployment Checklist
+
+```bash
+# Check mainnet configuration
+npm run check:mainnet
+```
+
+#### 2. Configure Mainnet Environment
+
+```bash
+# Copy example configuration
+cp .env.mainnet.example .env.mainnet
+
+# Edit with your mainnet values
+# IMPORTANT: Never commit .env.mainnet to version control
+```
+
+#### 3. Deploy Smart Contracts
+
+```bash
+# Deploy to Ethereum mainnet
+npm run deploy:mainnet -- --network ethereum
+
+# Deploy to BSC mainnet
+npm run deploy:mainnet -- --network bsc
+```
+
+#### 4. Verify Contracts
+
+```bash
+# Verify on Etherscan/BSCScan
+npm run verify:contracts -- --network ethereum --manifest deployments/mainnet-ethereum-xxx.json
+```
+
 ### Docker Deployment
 
 ```bash

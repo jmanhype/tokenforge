@@ -1,7 +1,8 @@
 import { v } from "convex/values";
-import { query, mutation, action, internalQuery } from "./_generated/server";
+import { query, mutation, action, internalQuery, internalMutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
+import { api } from "./_generated/api";
 
 // Get all meme coins with pagination
 export const listMemeCoins = query({
@@ -132,7 +133,7 @@ export const checkRateLimit = query({
 });
 
 // Create a new meme coin
-export const createMemeCoin = mutation({
+export const createMemeCoin = action({
   args: {
     name: v.string(),
     symbol: v.string(),
@@ -144,10 +145,11 @@ export const createMemeCoin = mutation({
     blockchain: v.union(v.literal("ethereum"), v.literal("solana"), v.literal("bsc")),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       throw new Error("Not authenticated");
     }
+    const userId = identity.subject;
 
     // Validate inputs
     if (args.name.length < 2 || args.name.length > 50) {
@@ -186,8 +188,15 @@ export const createMemeCoin = mutation({
       throw new Error("A coin with this symbol already exists");
     }
 
+    // Calculate and collect fee
+    const feeData = await ctx.runQuery(internal.fees.feeManager.calculateFee, {
+      feeType: 0, // TOKEN_CREATION
+      blockchain: args.blockchain,
+      testnet: true, // Always testnet for dev
+    });
+    
     // Create the meme coin
-    const coinId = await ctx.db.insert("memeCoins", {
+    const coinId = await ctx.runMutation(internal.memeCoins.createCoinRecord, {
       name: args.name,
       symbol: args.symbol.toUpperCase(),
       initialSupply: args.initialSupply,
@@ -197,10 +206,27 @@ export const createMemeCoin = mutation({
       creatorId: userId,
       description: args.description,
       status: "pending",
+      blockchain: args.blockchain,
     });
+    
+    // Record fee collection after coin creation
+    if (feeData.fee > 0) {
+      await ctx.runMutation(internal.fees.feeManager.recordFeeCollection, {
+        userId,
+        tokenId: coinId,
+        feeType: 0, // TOKEN_CREATION
+        amount: feeData.fee,
+        blockchain: args.blockchain,
+        status: "pending",
+        metadata: {
+          name: args.name,
+          symbol: args.symbol,
+        },
+      });
+    }
 
     // Initialize bonding curve for the token
-    await ctx.db.insert("bondingCurves", {
+    await ctx.runMutation(internal.bondingCurve.createBondingCurveRecord, {
       coinId,
       currentSupply: 0,
       currentPrice: 0.00001, // Starting price
@@ -210,6 +236,42 @@ export const createMemeCoin = mutation({
       holders: 0,
       isActive: true,
       createdAt: Date.now(),
+    });
+
+    // Initialize revenue tracking for the creator
+    await ctx.runMutation(internal.revenue.creatorRevenue.initializeRevenue, {
+      tokenId: coinId,
+      creatorId: userId,
+      blockchain: args.blockchain,
+    });
+
+    // Initialize fair launch configuration
+    await ctx.runMutation(internal.fairLaunch.initializeFairLaunch, {
+      tokenId: coinId,
+      totalSupply: args.initialSupply,
+      useDefaults: true,
+    });
+
+    // Initialize burn configuration with defaults
+    await ctx.runMutation(internal.tokenBurn.initializeBurnConfig, {
+      tokenId: coinId,
+      autoBurnEnabled: false, // Off by default, creator can enable
+      burnFeePercent: 100, // 1% default
+      manualBurnEnabled: true,
+      burnOnGraduation: true,
+      graduationBurnPercent: 2000, // 20% default
+    });
+
+    // Initialize auto-liquidity configuration
+    await ctx.runMutation(internal.autoLiquidity.initializeAutoLiquidity, {
+      tokenId: coinId,
+      initialSupply: args.initialSupply,
+    });
+
+    // Initialize reflections configuration
+    await ctx.runMutation(internal.reflections.initializeReflections, {
+      tokenId: coinId,
+      initialSupply: args.initialSupply,
     });
 
     // Queue deployment job instead of direct scheduling
@@ -228,7 +290,11 @@ export const createMemeCoin = mutation({
       coinId,
     });
 
-    return coinId;
+    return {
+      coinId,
+      fee: feeData.fee,
+      feeCollectorAddress: process.env.FEE_COLLECTOR_SEPOLIA || "",
+    };
   },
 });
 
@@ -362,5 +428,87 @@ export const get = internalQuery({
       throw new Error("Coin not found");
     }
     return coin;
+  },
+});
+
+// Internal query to get token details
+export const getToken = internalQuery({
+  args: { tokenId: v.id("memeCoins") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.tokenId);
+  },
+});
+
+// Internal query to get token by contract address
+export const getByContractAddress = internalQuery({
+  args: { contractAddress: v.string() },
+  handler: async (ctx, args) => {
+    // Find deployment with this contract address
+    const deployment = await ctx.db
+      .query("deployments")
+      .withIndex("by_contractAddress", (q) => q.eq("contractAddress", args.contractAddress))
+      .first();
+    
+    if (!deployment) return null;
+    
+    // Get the associated coin
+    return await ctx.db.get(deployment.coinId);
+  },
+});
+
+// Internal mutation to create coin record
+export const createCoinRecord = internalMutation({
+  args: {
+    name: v.string(),
+    symbol: v.string(),
+    initialSupply: v.number(),
+    canMint: v.boolean(),
+    canBurn: v.boolean(),
+    postQuantumSecurity: v.boolean(),
+    creatorId: v.string(),
+    description: v.optional(v.string()),
+    blockchain: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("memeCoins", {
+      name: args.name,
+      symbol: args.symbol,
+      initialSupply: args.initialSupply,
+      canMint: args.canMint,
+      canBurn: args.canBurn,
+      postQuantumSecurity: args.postQuantumSecurity,
+      creatorId: args.creatorId as any,
+      description: args.description,
+      status: "pending",
+    });
+  },
+});
+
+// Internal mutation to update token status after DEX listing
+export const updateTokenStatus = internalMutation({
+  args: {
+    tokenId: v.id("memeCoins"),
+    dexListed: v.boolean(),
+    dexPool: v.optional(v.string()),
+    bondingCurveActive: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.tokenId, {
+      status: args.dexListed ? "graduated" : "deployed",
+    });
+    
+    // Update bonding curve status
+    const bondingCurve = await ctx.db
+      .query("bondingCurves")
+      .withIndex("by_coin", (q) => q.eq("coinId", args.tokenId))
+      .first();
+    
+    if (bondingCurve) {
+      await ctx.db.patch(bondingCurve._id, {
+        isActive: args.bondingCurveActive,
+        ...(args.dexPool && { dexPoolAddress: args.dexPool }),
+        ...(args.dexListed && { graduatedAt: Date.now() }),
+      });
+    }
   },
 });

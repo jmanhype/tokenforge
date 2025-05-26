@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "convex/react";
+import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { Loader2, TrendingUp, TrendingDown, AlertCircle } from "lucide-react";
@@ -28,8 +28,8 @@ export function TradingPanel({
   const [slippage, setSlippage] = useState(1); // 1% default slippage
   const [isLoading, setIsLoading] = useState(false);
 
-  const buyTokens = useMutation(api.bondingCurve.buy);
-  const sellTokens = useMutation(api.bondingCurve.sell);
+  const buyTokens = useAction(api.bondingCurve.buyTokens);
+  const sellTokens = useAction(api.bondingCurve.sellTokens);
 
   // Calculate estimated output
   const calculateEstimate = () => {
@@ -77,38 +77,28 @@ export function TradingPanel({
     try {
       if (tradeType === "buy") {
         const result = await buyTokens({
-          coinId,
-          amountInUSD: parseFloat(amount),
-          minTokensOut: estimate ? estimate.output * (1 - maxSlippage) : 0,
+          tokenId: coinId,
+          ethAmount: parseFloat(amount),
         });
 
-        if (result.success) {
-          toast.success(
-            `Bought ${formatNumber(result.tokensOut)} tokens for ${formatCurrency(
-              result.amountIn
-            )}`
-          );
-          setAmount("");
-        } else {
-          toast.error(result.error || "Transaction failed");
-        }
+        toast.success(
+          `Bought ${formatNumber(result.tokensReceived)} tokens at avg price ${formatCurrency(
+            result.avgPrice
+          )}`
+        );
+        setAmount("");
       } else {
         const result = await sellTokens({
-          coinId,
+          tokenId: coinId,
           tokenAmount: parseFloat(amount),
-          minUSDOut: estimate ? estimate.output * (1 - maxSlippage) : 0,
         });
 
-        if (result.success) {
-          toast.success(
-            `Sold ${formatNumber(result.tokensIn)} tokens for ${formatCurrency(
-              result.amountOut
-            )}`
-          );
-          setAmount("");
-        } else {
-          toast.error(result.error || "Transaction failed");
-        }
+        toast.success(
+          `Sold ${formatNumber(parseFloat(amount))} tokens for ${formatCurrency(
+            result.ethReceived
+          )}`
+        );
+        setAmount("");
       }
     } catch (error) {
       console.error("Trade error:", error);
