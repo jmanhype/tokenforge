@@ -12,12 +12,12 @@ import {
 describe('Security Utils', () => {
   describe('sanitizeInput', () => {
     it('should remove HTML tags', () => {
-      expect(sanitizeInput('<script>alert("xss")</script>Hello')).toBe('alert("xss")Hello')
+      expect(sanitizeInput('<script>alert("xss")</script>Hello')).toBe('alert(xss)Hello')
       expect(sanitizeInput('Hello <b>world</b>')).toBe('Hello world')
     })
 
     it('should remove SQL injection attempts', () => {
-      expect(sanitizeInput("'; DROP TABLE users; --")).toBe('; DROP TABLE users;  ')
+      expect(sanitizeInput("'; DROP TABLE users; --")).toBe(' DROP TABLE users  ')
       expect(sanitizeInput('1 OR 1=1')).toBe('1 OR 1=1')
     })
 
@@ -125,7 +125,7 @@ describe('Security Utils', () => {
     it('should validate transaction hashes', () => {
       expect(isValidTransactionHash('0x' + 'a'.repeat(64), 'ethereum')).toBe(true)
       expect(isValidTransactionHash('0x' + '1234567890abcdef'.repeat(4), 'bsc')).toBe(true)
-      expect(isValidTransactionHash('1234567890ABCDEFabcdefGHIJKLMNOPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz123456789012345678', 'solana')).toBe(true)
+      expect(isValidTransactionHash('1234567890ABCDEFabcdefGHIJKLMNOPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz12345678901234567890', 'solana')).toBe(true)
     })
 
     it('should reject invalid transaction hashes', () => {

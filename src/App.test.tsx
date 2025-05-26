@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 
 // Mock Convex hooks
@@ -8,6 +9,7 @@ vi.mock('convex/react', () => ({
   ConvexProvider: ({ children }: { children: React.ReactNode }) => children,
   useQuery: () => null,
   useMutation: () => vi.fn(),
+  useAction: () => vi.fn(),
   useConvexAuth: () => ({
     isAuthenticated: false,
     isLoading: false,
@@ -27,17 +29,29 @@ vi.mock('@convex-dev/auth/react', () => ({
 
 describe('App', () => {
   it('renders without crashing', () => {
-    render(<App />)
-    expect(screen.getByText('MemeCoinGen')).toBeInTheDocument()
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    )
+    expect(screen.getByText('TokenForge')).toBeInTheDocument()
   })
 
   it('shows the welcome message', () => {
-    render(<App />)
-    expect(screen.getByText('Welcome to MemeCoinGen')).toBeInTheDocument()
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    )
+    expect(screen.getByText('Welcome to TokenForge')).toBeInTheDocument()
   })
 
   it('displays the tagline', () => {
-    render(<App />)
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    )
     expect(screen.getByText('Create and deploy your own meme coins in minutes')).toBeInTheDocument()
   })
 })
