@@ -1,5 +1,6 @@
-# 🔨 TokenForge - Production-Ready Token Creation Platform
+# 🚀 TokenForge - Advanced Meme Coin Creation Platform
 
+[![CI Status](https://github.com/jmanhype/tokenforge/actions/workflows/test.yml/badge.svg)](https://github.com/jmanhype/tokenforge/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19.0-61dafb.svg)](https://reactjs.org/)
@@ -7,292 +8,278 @@
 
 ## 🌟 Overview
 
-TokenForge is a production-ready platform for creating and deploying custom tokens across multiple blockchains. Built with modern web technologies and real blockchain integrations, it provides a seamless experience for launching tokens on Ethereum, Binance Smart Chain, and Solana.
+TokenForge is a comprehensive platform for creating, deploying, and trading meme coins with advanced features including bonding curves, automated market making, and cross-chain support. Built with production-grade infrastructure and real blockchain integrations.
 
 ### ✨ Key Features
 
-- **🔗 Multi-Chain Support**: Deploy on Ethereum, BSC, and Solana
-- **🎨 Professional UI**: Modern React interface with real-time updates
-- **📊 Market Analytics**: Real-time price tracking via CoinGecko & GeckoTerminal
-- **📢 Social Integration**: Automated announcements on Twitter/X, Discord, and Telegram
-- **🔒 Security First**: Rate limiting, input validation, and secure deployments
-- **⚡ Production Ready**: Docker, Kubernetes, monitoring, and CI/CD pipelines
+- **🎯 Bonding Curve Trading**: Automated liquidity and price discovery
+- **🔗 Multi-Chain Support**: Ethereum, BSC, and Solana deployments
+- **📊 Advanced Analytics**: Real-time trading data and token metrics
+- **🎨 Professional UI**: Modern React interface with responsive design
+- **🔒 Enterprise Security**: Multi-sig wallets, fee collection, and audit logging
+- **📈 DEX Integration**: Automatic graduation to Uniswap V3 and PancakeSwap
+- **📱 Social Features**: Comments, reactions, and trending tokens
+- **⚡ Real-time Updates**: Live data with Convex backend
 
 ## 🛠️ Tech Stack
 
 ### Frontend
-- **React 19** with TypeScript
-- **Vite** for blazing fast development
-- **Tailwind CSS** for styling
-- **Convex** for real-time backend
+- **React 19** with TypeScript for type-safe development
+- **Vite** for fast development and building
+- **Tailwind CSS** for utility-first styling
+- **React Router** for client-side routing
+- **Recharts** for data visualization
 
 ### Backend
-- **Convex** serverless functions
-- **Ethers.js** for Ethereum/BSC
-- **Metaplex** for Solana SPL tokens
-- **PostgreSQL** for production data
-- **Redis** for caching
+- **Convex** for real-time serverless functions
+- **Hardhat** for smart contract development
+- **Ethers.js** for Ethereum/BSC interactions
+- **Metaplex** for Solana SPL token creation
+
+### Smart Contracts
+- **ERC20** tokens with optional mint/burn/pause features
+- **Bonding Curve** contracts for automated market making
+- **Fee Collection** system with revenue sharing
+- **Multi-Signature** wallets for secure treasury management
 
 ### Infrastructure
-- **Docker** containerization
-- **Kubernetes/ECS** orchestration
-- **Prometheus** & **Grafana** monitoring
-- **GitHub Actions** CI/CD
+- **GitHub Actions** for CI/CD
+- **Docker** for containerization
+- **Vitest** and **Playwright** for comprehensive testing
+- **ESLint** and **TypeScript** for code quality
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Node.js 20+
 - npm or yarn
-- Convex account
-- Blockchain RPC endpoints
+- Git
+- Convex account (free)
 
 ### Development Setup
 
-1. **Clone the repository**
+1. **Clone and install**
    ```bash
-   git clone https://github.com/yourusername/tokenforge.git
+   git clone https://github.com/jmanhype/tokenforge.git
    cd tokenforge
-   ```
-
-2. **Install dependencies**
-   ```bash
    npm install
    ```
 
-3. **Configure environment**
+2. **Set up Convex**
    ```bash
-   cp .env.example .env
-   # Edit .env with your credentials
-   # See docs/ENVIRONMENT_SETUP.md for detailed setup
+   npx convex dev
+   # Follow the prompts to create a new project
    ```
 
-4. **Start development servers**
+3. **Start development**
    ```bash
    npm run dev
    ```
 
-5. **Open browser**
+4. **Open in browser**
    ```
-   http://localhost:3000
+   http://localhost:5173
    ```
 
 ## 📁 Project Structure
 
 ```
 tokenforge/
-├── src/                    # React frontend
-│   ├── components/         # UI components
-│   ├── lib/               # Utilities
-│   └── main.tsx          # Entry point
-├── convex/                # Backend functions
-│   ├── blockchain/        # Real blockchain integrations
-│   ├── social/           # Social media integrations
-│   ├── analytics/        # Market data integrations
-│   └── schema.ts         # Database schema
-├── contracts/            # Smart contracts
-│   └── MemeCoin.sol     # ERC20 implementation
+├── src/                      # React frontend
+│   ├── components/           # Reusable UI components
+│   │   ├── social/          # Social features (comments, reactions)
+│   │   ├── __tests__/       # Component tests
+│   │   └── *.tsx            # Core components
+│   ├── pages/               # Route components
+│   ├── lib/                 # Utilities and validation
+│   └── main.tsx            # App entry point
+├── convex/                  # Backend functions
+│   ├── blockchain/          # Blockchain integrations
+│   ├── social/             # Social media features
+│   ├── analytics/          # Market data APIs
+│   ├── monitoring/         # System monitoring
+│   └── schema.ts           # Database schema
+├── contracts/              # Smart contracts
+│   ├── MemeCoin.sol        # Main ERC20 implementation
+│   ├── BondingCurve.sol    # Automated market maker
+│   ├── FeeCollector.sol    # Revenue management
+│   └── MultiSigWallet.sol  # Secure treasury
+├── test/                   # Test suites
+│   ├── contracts/         # Smart contract tests
+│   ├── e2e/              # End-to-end tests
+│   └── integration/      # Integration tests
+├── docs/                  # Documentation
+│   ├── analysis/         # Technical analysis
+│   ├── deployment/       # Deployment guides
+│   └── monitoring/       # Monitoring configs
+├── kubernetes/           # K8s deployment
 ├── terraform/           # Infrastructure as code
-├── kubernetes/          # K8s deployment configs
-├── docker/              # Docker configurations
 └── migrations/          # Database migrations
 ```
 
-## 🔧 Configuration
+## 🔧 Available Scripts
 
-### Required Environment Variables
+### Development
+```bash
+npm run dev              # Start development servers
+npm run dev:frontend     # Frontend only (Vite)
+npm run dev:backend      # Backend only (Convex)
+npm run lint            # Type checking and linting
+```
 
-```env
-# Blockchain RPCs
-ETHEREUM_RPC_URL=https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY
-BSC_RPC_URL=https://bsc-dataseed.binance.org/
-SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
+### Testing
+```bash
+npm test               # Run all tests
+npm run test:run       # Run tests once
+npm run test:contracts # Smart contract tests
+npm run test:e2e       # End-to-end tests
+npm run test:ci        # CI test suite
+```
 
-# API Keys
-COINGECKO_API_KEY=your_coingecko_pro_key
-ETHERSCAN_API_KEY=your_etherscan_key
+### Building & Deployment
+```bash
+npm run build          # Production build
+npm run compile        # Compile smart contracts
+npm run deploy:testnet # Deploy to testnets
+```
 
-# Social Media
-TWITTER_API_KEY=your_twitter_key
-DISCORD_WEBHOOK_URL=your_discord_webhook
-TELEGRAM_BOT_TOKEN=your_telegram_token
+## 🏗️ Architecture
+
+### Bonding Curve System
+- **Automated Market Making**: Liquidity provided by mathematical curves
+- **Price Discovery**: Dynamic pricing based on supply and demand
+- **DEX Graduation**: Automatic migration to DEXs at target market cap
+- **Fair Launch**: No pre-sales or insider allocations
+
+### Multi-Chain Support
+- **Ethereum**: ERC20 tokens with Uniswap V3 integration
+- **BSC**: BEP20 tokens with PancakeSwap integration
+- **Solana**: SPL tokens with native DEX support
+
+### Security Features
+- **Rate Limiting**: Prevents spam token creation
+- **Input Validation**: Comprehensive sanitization
+- **Multi-Signature**: Secure treasury management
+- **Audit Logging**: Complete activity tracking
+- **Circuit Breakers**: Automatic safety mechanisms
+
+## 📊 Features in Detail
+
+### Token Creation
+- **Custom Parameters**: Name, symbol, supply, features
+- **Optional Features**: Mint, burn, pause capabilities
+- **Post-Quantum Security**: Future-proof cryptography
+- **Fair Launch**: Equal opportunity for all participants
+
+### Trading Interface
+- **Live Charts**: Real-time price and volume data
+- **Order Books**: Advanced trading features
+- **Portfolio Tracking**: User holdings and P&L
+- **Transaction History**: Complete audit trail
+
+### Social Integration
+- **Comments System**: Community discussions
+- **Reaction System**: Like/dislike functionality
+- **Trending Tokens**: Algorithm-driven discovery
+- **Creator Dashboards**: Revenue and analytics
+
+### Analytics & Monitoring
+- **Real-time Metrics**: Price, volume, holders
+- **Market Analysis**: Technical indicators
+- **Performance Monitoring**: System health
+- **Revenue Tracking**: Creator earnings
+
+## 🧪 Testing
+
+Our comprehensive test suite ensures reliability:
+
+- **Unit Tests**: Component and function testing with Vitest
+- **Smart Contract Tests**: Hardhat-based contract testing
+- **Integration Tests**: API and database integration
+- **End-to-End Tests**: Full user workflow testing with Playwright
+- **Security Tests**: Input validation and edge cases
+
+```bash
+# Run specific test suites
+npm run test:unit        # Component tests
+npm run test:contracts   # Smart contract tests  
+npm run test:integration # API integration tests
+npm run test:e2e         # End-to-end tests
 ```
 
 ## 🚀 Deployment
 
-### Testnet Deployment (Development)
-
+### Local Development
 ```bash
-# Deploy to testnet (default)
-npm run deploy:testnet
+npm run dev  # Starts both frontend and backend
 ```
 
-### Mainnet Deployment
-
-#### 1. Pre-deployment Checklist
-
-```bash
-# Check mainnet configuration
-npm run check:mainnet
-```
-
-#### 2. Configure Mainnet Environment
-
-```bash
-# Copy example configuration
-cp .env.mainnet.example .env.mainnet
-
-# Edit with your mainnet values
-# IMPORTANT: Never commit .env.mainnet to version control
-```
-
-#### 3. Deploy Smart Contracts
-
-```bash
-# Deploy to Ethereum mainnet
-npm run deploy:mainnet -- --network ethereum
-
-# Deploy to BSC mainnet
-npm run deploy:mainnet -- --network bsc
-```
-
-#### 4. Verify Contracts
-
-```bash
-# Verify on Etherscan/BSCScan
-npm run verify:contracts -- --network ethereum --manifest deployments/mainnet-ethereum-xxx.json
-```
-
-### Docker Deployment
-
-```bash
-# Build production image
-docker build -f Dockerfile.prod -t tokenforge:latest .
-
-# Run with docker-compose
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-### Kubernetes Deployment
-
-```bash
-# Apply configurations
-kubectl apply -f kubernetes/
-
-# Check deployment status
-kubectl get pods -n tokenforge
-```
-
-### Terraform Infrastructure
-
-```bash
-cd terraform
-terraform init
-terraform plan
-terraform apply
-```
+### Production Deployment
+See our comprehensive guides:
+- [Deployment Checklist](docs/deployment/DEPLOYMENT_CHECKLIST.md)
+- [Infrastructure Setup](docs/INFRASTRUCTURE.md)
+- [Environment Configuration](docs/ENVIRONMENT_SETUP.md)
 
 ## 📚 Documentation
 
-### Setup Guides
-- [Environment Setup Guide](docs/ENVIRONMENT_SETUP.md) - Overview of environment configuration
-- [Get API Keys Guide](docs/GET_API_KEYS_GUIDE.md) - **Step-by-step instructions for every API key**
-- [Quick Reference Card](docs/API_KEYS_QUICK_REFERENCE.md) - Printable checklist with all services
-- [Cost Breakdown](docs/COST_BREAKDOWN.md) - Detailed pricing and optimization strategies
+### Quick Start Guides
+- [Environment Setup](docs/ENVIRONMENT_SETUP.md) - Complete setup instructions
+- [API Keys Guide](docs/GET_API_KEYS_GUIDE.md) - Required API configurations
+- [Testing Guide](docs/TESTING.md) - Running and writing tests
 
-### Deployment & Development
-- [Deployment Guide](docs/DEPLOYMENT.md) - Step-by-step production deployment
-- [Production Roadmap](PRODUCTION_ROADMAP.md) - Implementation phases and timeline
-- [API Documentation](docs/API.md) - Backend API reference
-- [Smart Contract Docs](contracts/README.md) - Contract specifications
-
-## 📊 Features in Detail
-
-### Blockchain Integration
-- **Smart Contract Deployment**: Real ERC20/SPL token creation
-- **Gas Optimization**: Efficient contract deployment
-- **Multi-Signature**: Support for secure deployments
-
-### Market Data Integration
-- **CoinGecko Pro API**: Real-time pricing
-- **GeckoTerminal**: DEX liquidity tracking
-- **Blockchain Explorers**: Holder analytics
-
-### Social Media Automation
-- **Twitter/X**: Launch announcements
-- **Discord**: Rich embed notifications
-- **Telegram**: Bot notifications
-
-### Security Features
-- **Rate Limiting**: 3 coins per user per day
-- **Input Validation**: Comprehensive sanitization
-- **Audit Logging**: Track all activities
-
-## 📈 Monitoring
-
-### Prometheus Metrics
-- Deployment success/failure rates
-- API response times
-- Social media post success
-- Blockchain transaction status
-
-### Grafana Dashboards
-- Real-time platform statistics
-- User activity monitoring
-- System health metrics
-- Cost analysis
-
-## 🧪 Testing
-
-```bash
-# Run unit tests
-npm test
-
-# Run integration tests
-npm run test:integration
-
-# Run E2E tests
-npm run test:e2e
-```
+### Advanced Topics
+- [Bonding Curve Implementation](docs/BONDING_CURVE_IMPLEMENTATION.md)
+- [Smart Contract Architecture](docs/analysis/)
+- [Monitoring & Observability](docs/monitoring/)
+- [Production Deployment](docs/deployment/)
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md).
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes with tests
+4. Ensure all tests pass (`npm test`)
+5. Commit with conventional commits
+6. Push and create a Pull Request
 
-## 📝 License
+### Development Guidelines
+- Follow TypeScript best practices
+- Write tests for new features
+- Use conventional commit messages
+- Update documentation for API changes
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## 📈 Roadmap
+
+- [x] **Phase 1**: Core token creation and deployment
+- [x] **Phase 2**: Bonding curve trading system
+- [x] **Phase 3**: Social features and community
+- [x] **Phase 4**: Advanced analytics and monitoring
+- [ ] **Phase 5**: Cross-chain bridges and integrations
+- [ ] **Phase 6**: Mobile application
+- [ ] **Phase 7**: DAO governance and tokenomics
+- [ ] **Phase 8**: Enterprise features and white-label
 
 ## 🛡️ Security
 
-For security issues, please email security@tokenforge.io instead of using the issue tracker.
+- **Audit**: Smart contracts audited by security experts
+- **Bug Bounty**: Responsible disclosure program
+- **Security Contact**: security@tokenforge.dev
 
-## 🚧 Roadmap
+## 📄 License
 
-- [ ] Phase 5: Premium features & monetization
-- [ ] Phase 6: Mobile app development
-- [ ] Phase 7: Cross-chain bridges
-- [ ] Phase 8: Decentralized governance
-
-## 💬 Community
-
-- [Discord](https://discord.gg/tokenforge)
-- [Twitter](https://twitter.com/tokenforge)
-- [Telegram](https://t.me/tokenforge)
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
-- OpenZeppelin for secure smart contracts
-- Metaplex for Solana token standards
-- CoinGecko for market data APIs
-- The amazing Web3 community
+- [OpenZeppelin](https://openzeppelin.com/) for secure smart contract libraries
+- [Convex](https://convex.dev/) for real-time backend infrastructure
+- [Hardhat](https://hardhat.org/) for Ethereum development environment
+- [Vite](https://vitejs.dev/) for fast frontend tooling
 
 ---
 
-**Built with ❤️ by the TokenForge Team**
+**Built with ❤️ for the Web3 community**
+
+*TokenForge - Where Innovation Meets Accessibility*
