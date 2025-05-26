@@ -1,6 +1,7 @@
 import { ethers } from "ethers";
 import { v } from "convex/values";
 import { internalAction } from "../_generated/server";
+import { withCircuitBreaker } from "./withCircuitBreaker";
 
 // ABI for ERC20 token contract
 const ERC20_ABI = [
@@ -22,9 +23,8 @@ const ERC20_ABI = [
   "event Approval(address indexed owner, address indexed spender, uint256 value)"
 ];
 
-// Bytecode will be loaded from the compiled contract
-// This is a placeholder - in production, load from compiled Solidity contract
-const ERC20_BYTECODE = "0x"; // This will be populated from the compiled contract
+// Import compiled contract data
+import { MEMECOIN_BYTECODE, MEMECOIN_ABI } from "./contractData.js";
 
 export const deployERC20Contract = internalAction({
   args: {
@@ -80,7 +80,7 @@ export const deployERC20Contract = internalAction({
       const initialSupplyWei = ethers.parseUnits(args.initialSupply.toString(), decimalsToUse);
       
       // Create contract factory
-      const factory = new ethers.ContractFactory(ERC20_ABI, ERC20_BYTECODE, wallet);
+      const factory = new ethers.ContractFactory(MEMECOIN_ABI, MEMECOIN_BYTECODE, wallet);
       
       // Estimate gas for deployment
       const estimatedGas = await factory.getDeployTransaction(

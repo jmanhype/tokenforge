@@ -84,7 +84,7 @@ export function generateHashtags(coin: CoinData): string[] {
 }
 
 // Format Twitter/X message (280 char limit)
-export function formatTwitterMessage(coin: CoinData, type: "launch" | "milestone" = "launch"): string {
+export function formatTwitterMessage(coin: CoinData, type: "launch" | "milestone" | "update" = "launch"): string {
   if (type === "launch") {
     const explorerUrl = coin.deployment 
       ? getExplorerUrl(coin.deployment.blockchain, coin.deployment.contractAddress)
@@ -105,15 +105,22 @@ ${generateHashtags(coin).slice(0, 4).join(" ")}`;
   }
   
   // Milestone message format
-  return `🎯 ${coin.name} ($${coin.symbol}) milestone achieved! 🚀
+  if (type === "milestone") {
+    return `🎯 ${coin.name} ($${coin.symbol}) milestone achieved! 🚀
 
 The community is growing strong! 💪
+
+${generateHashtags(coin).slice(0, 3).join(" ")}`;
+  }
+  
+  // Update message format (generic)
+  return `📢 ${coin.name} ($${coin.symbol}) update!
 
 ${generateHashtags(coin).slice(0, 3).join(" ")}`;
 }
 
 // Format Discord embed message
-export function formatDiscordEmbed(coin: CoinData, type: "launch" | "milestone" = "launch") {
+export function formatDiscordEmbed(coin: CoinData, type: "launch" | "milestone" | "update" = "launch") {
   const explorerUrl = coin.deployment 
     ? getExplorerUrl(coin.deployment.blockchain, coin.deployment.contractAddress)
     : "";
@@ -124,7 +131,9 @@ export function formatDiscordEmbed(coin: CoinData, type: "launch" | "milestone" 
   const embed = {
     title: type === "launch" 
       ? `🚀 ${coin.name} (${coin.symbol}) Launched!`
-      : `🎯 ${coin.name} (${coin.symbol}) Milestone`,
+      : type === "milestone"
+      ? `🎯 ${coin.name} (${coin.symbol}) Milestone`
+      : `📢 ${coin.name} (${coin.symbol}) Update`,
     color: 0x5865F2, // Discord blurple
     thumbnail: coin.logoUrl ? { url: coin.logoUrl } : undefined,
     description: coin.description || `${coin.name} is a new meme coin ready to moon!`,
@@ -180,7 +189,7 @@ export function formatDiscordEmbed(coin: CoinData, type: "launch" | "milestone" 
 }
 
 // Format Telegram message with Markdown
-export function formatTelegramMessage(coin: CoinData, type: "launch" | "milestone" = "launch"): string {
+export function formatTelegramMessage(coin: CoinData, type: "launch" | "milestone" | "update" = "launch"): string {
   const explorerUrl = coin.deployment 
     ? getExplorerUrl(coin.deployment.blockchain, coin.deployment.contractAddress)
     : "";
@@ -206,10 +215,18 @@ ${escapeMd(generateHashtags(coin).join(" "))}`;
   }
 
   // Milestone format
-  const escapeMd = (text: string) => text.replace(/[_*[\]()~`>#+=|{}.!-]/g, '\\$&');
-  return `🎯 *${escapeMd(coin.name)} \\($${escapeMd(coin.symbol)}\\) Milestone\\!*
+  if (type === "milestone") {
+    const escapeMd = (text: string) => text.replace(/[_*[\]()~`>#+=|{}.!-]/g, '\\$&');
+    return `🎯 *${escapeMd(coin.name)} \\($${escapeMd(coin.symbol)}\\) Milestone\\!*
 
 The community is growing strong\\! 💪
+
+${escapeMd(generateHashtags(coin).join(" "))}`;
+  }
+  
+  // Update format
+  const escapeMd = (text: string) => text.replace(/[_*[\]()~`>#+=|{}.!-]/g, '\\$&');
+  return `📢 *${escapeMd(coin.name)} \\($${escapeMd(coin.symbol)}\\) Update\\!*
 
 ${escapeMd(generateHashtags(coin).join(" "))}`;
 }

@@ -1,6 +1,8 @@
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
+import { Link } from "react-router-dom";
+import { TrendingUp, Users, Activity } from "lucide-react";
 
 interface CoinCardProps {
   coin: {
@@ -14,7 +16,7 @@ interface CoinCardProps {
     creatorId: Id<"users">;
     description?: string;
     logoUrl?: string;
-    status: "pending" | "deployed" | "failed";
+    status: "pending" | "deployed" | "failed" | "graduated";
     _creationTime: number;
     deployment?: {
       _id?: Id<"deployments">;
@@ -28,6 +30,14 @@ interface CoinCardProps {
       deploymentCost?: number;
     } | null;
     creatorName?: string;
+    bondingCurve?: {
+      isActive: boolean;
+      currentPrice: number;
+      marketCap: number;
+      progress: number;
+      totalVolume: number;
+      holders: number;
+    };
   };
   showAnalytics?: boolean;
 }
@@ -46,6 +56,8 @@ export function CoinCard({ coin, showAnalytics = false }: CoinCardProps) {
         return "bg-yellow-100 text-yellow-800";
       case "failed":
         return "bg-red-100 text-red-800";
+      case "graduated":
+        return "bg-purple-100 text-purple-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -59,6 +71,8 @@ export function CoinCard({ coin, showAnalytics = false }: CoinCardProps) {
         return "⏳";
       case "failed":
         return "❌";
+      case "graduated":
+        return "🎓";
       default:
         return "❓";
     }
@@ -136,8 +150,43 @@ export function CoinCard({ coin, showAnalytics = false }: CoinCardProps) {
         </div>
       )}
 
+      {/* Bonding Curve Status */}
+      {coin.bondingCurve && coin.bondingCurve.isActive && (
+        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-3 mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-gray-700 flex items-center gap-1">
+              <Activity className="w-4 h-4" />
+              Bonding Curve Active
+            </span>
+            <span className="text-xs text-indigo-600 font-medium">
+              {coin.bondingCurve.progress.toFixed(1)}% to DEX
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-xs">
+            <div className="text-center">
+              <div className="text-gray-600">Price</div>
+              <div className="font-mono font-medium">${coin.bondingCurve.currentPrice.toFixed(6)}</div>
+            </div>
+            <div className="text-center">
+              <div className="text-gray-600">Market Cap</div>
+              <div className="font-medium">${(coin.bondingCurve.marketCap / 1000).toFixed(1)}k</div>
+            </div>
+            <div className="text-center">
+              <div className="text-gray-600">Holders</div>
+              <div className="font-medium">{coin.bondingCurve.holders}</div>
+            </div>
+          </div>
+          <div className="mt-2 bg-gray-200 rounded-full h-1.5">
+            <div
+              className="bg-gradient-to-r from-indigo-500 to-purple-500 h-1.5 rounded-full transition-all duration-500"
+              style={{ width: `${Math.min(coin.bondingCurve.progress, 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Analytics */}
-      {showAnalytics && analytics?.latest && (
+      {showAnalytics && analytics?.latest && !coin.bondingCurve?.isActive && (
         <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-3 mb-4">
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
@@ -168,9 +217,24 @@ export function CoinCard({ coin, showAnalytics = false }: CoinCardProps) {
       )}
 
       {/* Footer */}
-      <div className="flex items-center justify-between text-sm text-gray-500">
-        <span>Supply: {coin.initialSupply.toLocaleString()}</span>
-        <span>by {coin.creatorName || "Anonymous"}</span>
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-gray-500">
+          <span>Supply: {coin.initialSupply.toLocaleString()}</span>
+        </div>
+        {coin.bondingCurve?.isActive && (
+          <Link
+            to={`/trade/${coin._id}`}
+            className="px-3 py-1 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-1"
+          >
+            <TrendingUp className="w-3 h-3" />
+            Trade
+          </Link>
+        )}
+        {!coin.bondingCurve?.isActive && coin.status === "graduated" && (
+          <span className="text-sm text-purple-600 font-medium">
+            Trading on DEX
+          </span>
+        )}
       </div>
     </div>
   );

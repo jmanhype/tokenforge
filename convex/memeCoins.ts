@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, mutation, action } from "./_generated/server";
+import { query, mutation, action, internalQuery } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
 
@@ -26,10 +26,24 @@ export const listMemeCoins = query({
         
         const creator = await ctx.db.get(coin.creatorId);
         
+        // Get bonding curve info if exists
+        const bondingCurve = await ctx.db
+          .query("bondingCurves")
+          .withIndex("by_coin", (q) => q.eq("coinId", coin._id))
+          .first();
+        
         return {
           ...coin,
           deployment,
           creatorName: creator?.name || creator?.email || "Anonymous",
+          bondingCurve: bondingCurve ? {
+            isActive: bondingCurve.isActive,
+            currentPrice: bondingCurve.currentPrice,
+            marketCap: bondingCurve.currentSupply * bondingCurve.currentPrice,
+            progress: (bondingCurve.currentSupply * bondingCurve.currentPrice / 100000) * 100,
+            totalVolume: bondingCurve.totalVolume,
+            holders: bondingCurve.holders,
+          } : undefined,
         };
       })
     );
@@ -61,9 +75,23 @@ export const getUserMemeCoins = query({
           .withIndex("by_coin", (q) => q.eq("coinId", coin._id))
           .first();
         
+        // Get bonding curve info if exists
+        const bondingCurve = await ctx.db
+          .query("bondingCurves")
+          .withIndex("by_coin", (q) => q.eq("coinId", coin._id))
+          .first();
+        
         return {
           ...coin,
           deployment,
+          bondingCurve: bondingCurve ? {
+            isActive: bondingCurve.isActive,
+            currentPrice: bondingCurve.currentPrice,
+            marketCap: bondingCurve.currentSupply * bondingCurve.currentPrice,
+            progress: (bondingCurve.currentSupply * bondingCurve.currentPrice / 100000) * 100,
+            totalVolume: bondingCurve.totalVolume,
+            holders: bondingCurve.holders,
+          } : undefined,
         };
       })
     );
@@ -171,10 +199,28 @@ export const createMemeCoin = mutation({
       status: "pending",
     });
 
-    // Schedule deployment
-    await ctx.scheduler.runAfter(0, internal.blockchain.deployContract, {
+    // Initialize bonding curve for the token
+    await ctx.db.insert("bondingCurves", {
       coinId,
-      blockchain: args.blockchain,
+      currentSupply: 0,
+      currentPrice: 0.00001, // Starting price
+      reserveBalance: 0,
+      totalVolume: 0,
+      totalTransactions: 0,
+      holders: 0,
+      isActive: true,
+      createdAt: Date.now(),
+    });
+
+    // Queue deployment job instead of direct scheduling
+    const jobId = await ctx.runMutation(internal.jobQueue.enqueue, {
+      type: "deploy_token",
+      payload: {
+        coinId,
+        blockchain: args.blockchain,
+        useTestnet: process.env.VITE_USE_TESTNET === 'true',
+      },
+      maxAttempts: 3,
     });
 
     // Schedule social media sharing
@@ -216,6 +262,40 @@ export const getCoinDetails = query({
       deployment,
       analytics,
       creatorName: creator?.name || creator?.email || "Anonymous",
+    };
+  },
+});
+
+// Get coin by ID (for trading page)
+export const getCoin = query({
+  args: { coinId: v.id("memeCoins") },
+  handler: async (ctx, args) => {
+    const coin = await ctx.db.get(args.coinId);
+    if (!coin) return null;
+    
+    // Get deployment info
+    const deployment = await ctx.db
+      .query("deployments")
+      .withIndex("by_coin", (q) => q.eq("coinId", args.coinId))
+      .first();
+    
+    // Get bonding curve info if exists
+    const bondingCurve = await ctx.db
+      .query("bondingCurves")
+      .withIndex("by_coin", (q) => q.eq("coinId", args.coinId))
+      .first();
+    
+    return {
+      ...coin,
+      deployment,
+      bondingCurve: bondingCurve ? {
+        isActive: bondingCurve.isActive,
+        currentPrice: bondingCurve.currentPrice,
+        marketCap: bondingCurve.currentSupply * bondingCurve.currentPrice,
+        progress: (bondingCurve.currentSupply * bondingCurve.currentPrice / 100000) * 100,
+        totalVolume: bondingCurve.totalVolume,
+        holders: bondingCurve.holders,
+      } : undefined,
     };
   },
 });
@@ -268,5 +348,19 @@ export const getAllDeployedCoins = query({
     );
     
     return coinsWithDeployments.filter(coin => coin !== null);
+  },
+});
+
+// Internal query to get coin by ID
+export const get = internalQuery({
+  args: {
+    id: v.id("memeCoins"),
+  },
+  handler: async (ctx, args) => {
+    const coin = await ctx.db.get(args.id);
+    if (!coin) {
+      throw new Error("Coin not found");
+    }
+    return coin;
   },
 });
