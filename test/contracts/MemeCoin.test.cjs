@@ -10,7 +10,7 @@ describe("MemeCoin", function () {
     const memeCoin = await MemeCoin.deploy(
       "Test Meme Coin",
       "TMC",
-      ethers.parseEther("1000000"), // 1M tokens
+      1000000, // 1M tokens (in whole tokens, contract will multiply by 10^18)
       owner.address,
       true, // canMint
       true, // canBurn
@@ -172,7 +172,7 @@ describe("MemeCoin", function () {
       const memeCoin = await MemeCoin.deploy(
         "No Mint Coin",
         "NMC",
-        ethers.parseEther("1000000"),
+        1000000,
         owner.address,
         false, // canMint
         true,
@@ -216,7 +216,7 @@ describe("MemeCoin", function () {
       const memeCoin = await MemeCoin.deploy(
         "No Burn Coin",
         "NBC",
-        ethers.parseEther("1000000"),
+        1000000,
         owner.address,
         true,
         false, // canBurn
@@ -243,7 +243,7 @@ describe("MemeCoin", function () {
       const memeCoin = await MemeCoin.deploy(
         "Pausable Coin",
         "PC",
-        ethers.parseEther("1000000"),
+        1000000,
         owner.address,
         true,
         true,
@@ -268,7 +268,7 @@ describe("MemeCoin", function () {
       const memeCoin = await MemeCoin.deploy(
         "Pausable Coin",
         "PC",
-        ethers.parseEther("1000000"),
+        1000000,
         owner.address,
         true,
         true,
@@ -301,8 +301,8 @@ describe("MemeCoin", function () {
       const [owner] = await ethers.getSigners();
       const MemeCoin = await ethers.getContractFactory("MemeCoin");
       
-      // Deploy with maximum uint256 supply
-      const maxSupply = ethers.MaxUint256;
+      // Deploy with maximum allowed supply (1 trillion tokens)
+      const maxSupply = 1000000000000; // 1 trillion tokens
       const memeCoin = await MemeCoin.deploy(
         "Max Supply Coin",
         "MSC",
@@ -313,13 +313,14 @@ describe("MemeCoin", function () {
         false
       );
 
-      expect(await memeCoin.totalSupply()).to.equal(maxSupply);
-      expect(await memeCoin.balanceOf(owner.address)).to.equal(maxSupply);
+      const expectedSupply = ethers.parseEther(maxSupply.toString());
+      expect(await memeCoin.totalSupply()).to.equal(expectedSupply);
+      expect(await memeCoin.balanceOf(owner.address)).to.equal(expectedSupply);
 
-      // Should fail to mint more (would overflow)
+      // Should fail to mint more (would exceed MAX_SUPPLY)
       await expect(
         memeCoin.mint(owner.address, 1)
-      ).to.be.reverted;
+      ).to.be.revertedWith("Minting would exceed maximum supply");
     });
   });
 });

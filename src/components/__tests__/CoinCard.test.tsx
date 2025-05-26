@@ -23,29 +23,27 @@ const TestWrapper = ({ children }: { children: React.ReactNode }) => (
 
 describe('CoinCard', () => {
   const mockCoin = {
-    _id: '1',
+    _id: '1' as any,
     _creationTime: Date.now(),
     name: 'Test Coin',
     symbol: 'TEST',
     description: 'A test coin',
     initialSupply: 1000000,
-    blockchain: 'ethereum' as const,
     canMint: true,
     canBurn: false,
-    canPause: true,
     postQuantumSecurity: false,
-    creatorId: 'user123',
+    creatorId: 'user123' as any,
     status: 'deployed' as const,
-    contractAddress: '0x1234567890123456789012345678901234567890',
-    transactionHash: '0xabcdef',
-    deploymentCost: '0.01',
-    analytics: {
-      price: 0.001,
-      marketCap: 1000,
-      volume24h: 100,
-      priceChange24h: 5.5,
-      holders: 10,
-      transactions24h: 25,
+    deployment: {
+      _id: 'deploy1' as any,
+      _creationTime: Date.now(),
+      coinId: '1' as any,
+      blockchain: 'ethereum' as const,
+      contractAddress: '0x1234567890123456789012345678901234567890',
+      transactionHash: '0xabcdef',
+      deployedAt: Date.now(),
+      gasUsed: 100000,
+      deploymentCost: 0.01,
     },
   }
 
@@ -87,8 +85,7 @@ describe('CoinCard', () => {
   })
 
   it('handles missing analytics gracefully', () => {
-    const coinWithoutAnalytics = { ...mockCoin, analytics: undefined }
-    render(<CoinCard coin={coinWithoutAnalytics} />, { wrapper: TestWrapper })
+    render(<CoinCard coin={mockCoin} />, { wrapper: TestWrapper })
     
     // Should render without errors
     expect(screen.getByText('Test Coin')).toBeInTheDocument()
