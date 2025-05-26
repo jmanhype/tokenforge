@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
+import { internal } from "./_generated/api";
 import { 
   calculateBuyAmount,
   calculateSellAmount,
@@ -120,7 +121,7 @@ export const buy = mutation({
           await ctx.db.patch(args.coinId, { status: "graduated" as any });
           
           // Queue DEX deployment
-          await ctx.scheduler.runAfter(0, "jobQueue.enqueue", {
+          await ctx.scheduler.runAfter(0, internal.jobQueue.enqueue, {
             type: "deploy_to_dex",
             payload: {
               coinId: args.coinId,

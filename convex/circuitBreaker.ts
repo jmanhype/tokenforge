@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
+import { internal } from "./_generated/api";
 
 // Circuit breaker states
 export type CircuitState = "closed" | "open" | "half_open";
@@ -78,9 +79,9 @@ export const getState = internalQuery({
         state: "closed" as CircuitState,
         failures: 0,
         successes: 0,
-        lastFailureTime: null,
-        lastSuccessTime: null,
-        nextAttemptTime: null,
+        lastFailureTime: undefined,
+        lastSuccessTime: undefined,
+        nextAttemptTime: undefined,
         totalRequests: 0,
         config,
       };
@@ -110,9 +111,9 @@ export const recordSuccess = internalMutation({
         state: "closed",
         failures: 0,
         successes: 1,
-        lastFailureTime: null,
+        lastFailureTime: undefined,
         lastSuccessTime: now,
-        nextAttemptTime: null,
+        nextAttemptTime: undefined,
         totalRequests: 1,
       });
       return;
@@ -133,7 +134,7 @@ export const recordSuccess = internalMutation({
         updates.state = "closed";
         updates.failures = 0;
         updates.successes = 0;
-        updates.nextAttemptTime = null;
+        updates.nextAttemptTime = undefined;
       }
     }
 
@@ -164,8 +165,8 @@ export const recordFailure = internalMutation({
         failures: 1,
         successes: 0,
         lastFailureTime: now,
-        lastSuccessTime: null,
-        nextAttemptTime: null,
+        lastSuccessTime: undefined,
+        nextAttemptTime: undefined,
         totalRequests: 1,
       });
       return;
@@ -242,7 +243,7 @@ export const shouldAllowRequest = internalQuery({
       return { 
         allowed: false, 
         state: "open" as CircuitState,
-        retryAfter: breaker.nextAttemptTime ? breaker.nextAttemptTime - now : null,
+        retryAfter: breaker.nextAttemptTime ? breaker.nextAttemptTime - now : undefined,
       };
     }
 
@@ -325,7 +326,7 @@ export const reset = internalMutation({
         state: "closed",
         failures: 0,
         successes: 0,
-        nextAttemptTime: null,
+        nextAttemptTime: undefined,
       });
 
       console.log(`[CircuitBreaker] Circuit RESET for ${args.service}`);
