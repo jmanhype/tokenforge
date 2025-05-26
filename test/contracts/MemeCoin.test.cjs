@@ -1,4 +1,4 @@
-const { ethers, expect } = require("./setup");
+const { ethers, expect } = require("./setup.cjs");
 const { loadFixture } = require("@nomicfoundation/hardhat-network-helpers");
 
 describe("MemeCoin", function () {

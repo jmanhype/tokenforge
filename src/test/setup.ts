@@ -11,6 +11,19 @@ afterEach(() => {
 // Mock convex/react - need to use hoisted mock
 vi.mock('convex/react');
 
+// Mock convex generated API
+vi.mock('../../convex/_generated/api', () => ({
+  api: {
+    memeCoins: {
+      createMemeCoin: 'memeCoins.createMemeCoin',
+      checkRateLimit: 'memeCoins.checkRateLimit',
+    },
+    analytics: {
+      getCoinAnalytics: 'analytics.getCoinAnalytics',
+    },
+  },
+}));
+
 // Mock react-router-dom
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom')
