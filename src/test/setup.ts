@@ -34,6 +34,19 @@ vi.mock('../../convex/_generated/api', () => ({
     analytics: {
       getCoinAnalytics: 'analytics.getCoinAnalytics',
     },
+    monitoringApi: {
+      getSystemHealth: 'monitoringApi.getSystemHealth',
+      getRecentAlerts: 'monitoringApi.getRecentAlerts',
+      getMetricsSummary: 'monitoringApi.getMetricsSummary',
+    },
+    users: {
+      viewer: {
+        loggedInUser: 'users.viewer.loggedInUser',
+      },
+    },
+    auth: {
+      loggedInUser: 'auth.loggedInUser',
+    },
   },
 }));
 
