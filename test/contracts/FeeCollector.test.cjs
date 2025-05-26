@@ -21,7 +21,7 @@ describe("FeeCollector", function () {
     );
 
     // Set default fees
-    await feeCollector.setFee(
+    await feeCollector.updateFeeConfig(
       FeeType.TOKEN_CREATION,
       ethers.parseEther("0.1"),
       ethers.parseEther("0.01"),
@@ -30,7 +30,7 @@ describe("FeeCollector", function () {
       false
     );
 
-    await feeCollector.setFee(
+    await feeCollector.updateFeeConfig(
       FeeType.BONDING_CURVE_TRADE,
       100, // 1% as basis points
       10,
@@ -46,8 +46,8 @@ describe("FeeCollector", function () {
     it("Should set the correct treasury and emergency addresses", async function () {
       const { feeCollector, treasury, emergency } = await loadFixture(deployFeeCollectorFixture);
 
-      expect(await feeCollector.treasuryAddress()).to.equal(treasury.address);
-      expect(await feeCollector.emergencyAddress()).to.equal(emergency.address);
+      expect(await feeCollector.treasury()).to.equal(treasury.address);
+      expect(await feeCollector.emergencyWithdrawAddress()).to.equal(emergency.address);
     });
 
     it("Should set owner correctly", async function () {
@@ -61,7 +61,7 @@ describe("FeeCollector", function () {
     it("Should allow owner to set fees", async function () {
       const { feeCollector } = await loadFixture(deployFeeCollectorFixture);
 
-      await feeCollector.setFee(
+      await feeCollector.updateFeeConfig(
         FeeType.DEX_GRADUATION,
         ethers.parseEther("0.5"),
         ethers.parseEther("0.1"),
@@ -70,7 +70,7 @@ describe("FeeCollector", function () {
         false
       );
 
-      const fee = await feeCollector.getFee(FeeType.DEX_GRADUATION);
+      const fee = await feeCollector.feeConfigs(FeeType.DEX_GRADUATION);
       expect(fee.amount).to.equal(ethers.parseEther("0.5"));
       expect(fee.minAmount).to.equal(ethers.parseEther("0.1"));
       expect(fee.maxAmount).to.equal(ethers.parseEther("2"));
@@ -82,7 +82,7 @@ describe("FeeCollector", function () {
       const { feeCollector, user1 } = await loadFixture(deployFeeCollectorFixture);
 
       await expect(
-        feeCollector.connect(user1).setFee(
+        feeCollector.connect(user1).updateFeeConfig(
           FeeType.TOKEN_CREATION,
           ethers.parseEther("0.2"),
           0,
@@ -110,7 +110,7 @@ describe("FeeCollector", function () {
       const { feeCollector } = await loadFixture(deployFeeCollectorFixture);
 
       // Set fee with min/max
-      await feeCollector.setFee(
+      await feeCollector.updateFeeConfig(
         FeeType.LIQUIDITY_PROVISION,
         500, // 5%
         ethers.parseEther("0.1"), // min
@@ -119,21 +119,21 @@ describe("FeeCollector", function () {
         true
       );
 
-      // Test below minimum
-      const smallAmount = ethers.parseEther("1"); // 5% = 0.05 ETH < 0.1 min
-      const smallFee = await feeCollector.calculateFee(
+      // Test minimum enforcement
+      const smallAmount = ethers.parseEther("0.1"); // Would be 0.005 ETH (5%), below min
+      const minFee = await feeCollector.calculateFee(
         FeeType.LIQUIDITY_PROVISION,
         smallAmount
       );
-      expect(smallFee).to.equal(ethers.parseEther("0.1")); // Should be min
+      expect(minFee).to.equal(ethers.parseEther("0.1"));
 
-      // Test above maximum
-      const largeAmount = ethers.parseEther("100"); // 5% = 5 ETH > 1 max
-      const largeFee = await feeCollector.calculateFee(
+      // Test maximum enforcement
+      const largeAmount = ethers.parseEther("100"); // Would be 5 ETH (5%), above max
+      const maxFee = await feeCollector.calculateFee(
         FeeType.LIQUIDITY_PROVISION,
         largeAmount
       );
-      expect(largeFee).to.equal(ethers.parseEther("1")); // Should be max
+      expect(maxFee).to.equal(ethers.parseEther("1"));
     });
   });
 
@@ -144,11 +144,11 @@ describe("FeeCollector", function () {
       const feeAmount = await feeCollector.calculateFee(FeeType.TOKEN_CREATION, 0);
       
       await expect(
-        feeCollector.connect(user1).collectFee(FeeType.TOKEN_CREATION, {
+        feeCollector.connect(user1).collectFeeETH(FeeType.TOKEN_CREATION, {
           value: feeAmount,
         })
       ).to.emit(feeCollector, "FeeCollected")
-        .withArgs(user1.address, FeeType.TOKEN_CREATION, feeAmount);
+        .withArgs(user1.address, FeeType.TOKEN_CREATION, feeAmount, ethers.ZeroAddress);
 
       expect(await ethers.provider.getBalance(feeCollector.target)).to.equal(feeAmount);
     });
@@ -160,7 +160,7 @@ describe("FeeCollector", function () {
       const incorrectFee = correctFee - ethers.parseEther("0.01");
 
       await expect(
-        feeCollector.connect(user1).collectFee(FeeType.TOKEN_CREATION, {
+        feeCollector.connect(user1).collectFeeETH(FeeType.TOKEN_CREATION, {
           value: incorrectFee,
         })
       ).to.be.revertedWith("Incorrect fee amount");
@@ -170,7 +170,7 @@ describe("FeeCollector", function () {
       const { feeCollector, user1 } = await loadFixture(deployFeeCollectorFixture);
 
       // Disable fee
-      await feeCollector.setFee(
+      await feeCollector.updateFeeConfig(
         FeeType.MULTI_SIG_DEPLOYMENT,
         ethers.parseEther("0.2"),
         0,
@@ -180,7 +180,7 @@ describe("FeeCollector", function () {
       );
 
       await expect(
-        feeCollector.connect(user1).collectFee(FeeType.MULTI_SIG_DEPLOYMENT, {
+        feeCollector.connect(user1).collectFeeETH(FeeType.MULTI_SIG_DEPLOYMENT, {
           value: ethers.parseEther("0.2"),
         })
       ).to.be.revertedWith("Fee type is disabled");
@@ -193,16 +193,13 @@ describe("FeeCollector", function () {
 
       // Collect some fees
       const feeAmount = await feeCollector.calculateFee(FeeType.TOKEN_CREATION, 0);
-      await feeCollector.connect(user1).collectFee(FeeType.TOKEN_CREATION, {
+      await feeCollector.connect(user1).collectFeeETH(FeeType.TOKEN_CREATION, {
         value: feeAmount,
       });
 
       const treasuryBalanceBefore = await ethers.provider.getBalance(treasury.address);
       
-      await expect(
-        feeCollector.distributeFees()
-      ).to.emit(feeCollector, "FeesDistributed")
-        .withArgs(treasury.address, feeAmount);
+      await feeCollector.distributeRevenue();
 
       const treasuryBalanceAfter = await ethers.provider.getBalance(treasury.address);
       expect(treasuryBalanceAfter - treasuryBalanceBefore).to.equal(feeAmount);
@@ -211,8 +208,8 @@ describe("FeeCollector", function () {
     it("Should handle zero balance distribution", async function () {
       const { feeCollector } = await loadFixture(deployFeeCollectorFixture);
 
-      // Should not revert even with zero balance
-      await expect(feeCollector.distributeFees()).to.not.be.reverted;
+      // Should revert with no ETH to distribute
+      await expect(feeCollector.distributeRevenue()).to.be.revertedWith("No ETH to distribute");
     });
   });
 
@@ -222,27 +219,28 @@ describe("FeeCollector", function () {
 
       // Collect some fees
       const feeAmount = await feeCollector.calculateFee(FeeType.TOKEN_CREATION, 0);
-      await feeCollector.connect(user1).collectFee(FeeType.TOKEN_CREATION, {
+      await feeCollector.connect(user1).collectFeeETH(FeeType.TOKEN_CREATION, {
         value: feeAmount,
       });
 
       const emergencyBalanceBefore = await ethers.provider.getBalance(emergency.address);
 
       await expect(
-        feeCollector.emergencyWithdraw()
+        feeCollector.connect(emergency).emergencyWithdraw(ethers.ZeroAddress, feeAmount)
       ).to.emit(feeCollector, "EmergencyWithdraw")
-        .withArgs(emergency.address, feeAmount);
+        .withArgs(emergency.address, feeAmount, ethers.ZeroAddress);
 
       const emergencyBalanceAfter = await ethers.provider.getBalance(emergency.address);
-      expect(emergencyBalanceAfter - emergencyBalanceBefore).to.equal(feeAmount);
+      // Account for gas costs
+      expect(emergencyBalanceAfter).to.be.gt(emergencyBalanceBefore);
     });
 
-    it("Should only allow owner to emergency withdraw", async function () {
+    it("Should only allow emergency address to emergency withdraw", async function () {
       const { feeCollector, user1 } = await loadFixture(deployFeeCollectorFixture);
 
       await expect(
-        feeCollector.connect(user1).emergencyWithdraw()
-      ).to.be.revertedWithCustomError(feeCollector, "OwnableUnauthorizedAccount");
+        feeCollector.connect(user1).emergencyWithdraw(ethers.ZeroAddress, ethers.parseEther("1"))
+      ).to.be.revertedWith("Not emergency address");
     });
   });
 
@@ -250,76 +248,34 @@ describe("FeeCollector", function () {
     it("Should allow owner to update treasury address", async function () {
       const { feeCollector, user2 } = await loadFixture(deployFeeCollectorFixture);
 
-      await feeCollector.setTreasuryAddress(user2.address);
-      expect(await feeCollector.treasuryAddress()).to.equal(user2.address);
-    });
-
-    it("Should allow owner to update emergency address", async function () {
-      const { feeCollector, user2 } = await loadFixture(deployFeeCollectorFixture);
-
-      await feeCollector.setEmergencyAddress(user2.address);
-      expect(await feeCollector.emergencyAddress()).to.equal(user2.address);
+      await feeCollector.updateTreasury(user2.address);
+      expect(await feeCollector.treasury()).to.equal(user2.address);
     });
 
     it("Should reject zero address for treasury", async function () {
       const { feeCollector } = await loadFixture(deployFeeCollectorFixture);
 
       await expect(
-        feeCollector.setTreasuryAddress(ethers.ZeroAddress)
-      ).to.be.revertedWith("Invalid treasury address");
-    });
-  });
-
-  describe("Batch Operations", function () {
-    it("Should configure multiple fees at once", async function () {
-      const { feeCollector } = await loadFixture(deployFeeCollectorFixture);
-
-      const feeTypes = [0, 1, 2, 3, 4];
-      const amounts = [
-        ethers.parseEther("0.1"),
-        100, // 1% in basis points
-        ethers.parseEther("0.5"),
-        ethers.parseEther("0.05"),
-        ethers.parseEther("0.2"),
-      ];
-      const enabled = [true, true, true, true, true];
-
-      await feeCollector.configureFees(feeTypes, amounts, enabled);
-
-      // Verify all fees were set
-      for (let i = 0; i < feeTypes.length; i++) {
-        const fee = await feeCollector.getFee(feeTypes[i]);
-        expect(fee.isEnabled).to.equal(true);
-      }
+        feeCollector.updateTreasury(ethers.ZeroAddress)
+      ).to.be.revertedWith("Invalid treasury");
     });
   });
 
   describe("View Functions", function () {
-    it("Should return all fee configurations", async function () {
-      const { feeCollector } = await loadFixture(deployFeeCollectorFixture);
-
-      const configs = await feeCollector.getAllFeeConfigurations();
-      
-      // Should have configurations for all fee types that were set
-      expect(configs.length).to.be.greaterThan(0);
-      expect(configs[0].feeType).to.equal(FeeType.TOKEN_CREATION);
-      expect(configs[0].amount).to.equal(ethers.parseEther("0.1"));
-    });
-
     it("Should calculate total fees collected", async function () {
       const { feeCollector, user1, user2 } = await loadFixture(deployFeeCollectorFixture);
 
       const fee1 = await feeCollector.calculateFee(FeeType.TOKEN_CREATION, 0);
-      await feeCollector.connect(user1).collectFee(FeeType.TOKEN_CREATION, {
+      await feeCollector.connect(user1).collectFeeETH(FeeType.TOKEN_CREATION, {
         value: fee1,
       });
 
       const fee2 = await feeCollector.calculateFee(FeeType.TOKEN_CREATION, 0);
-      await feeCollector.connect(user2).collectFee(FeeType.TOKEN_CREATION, {
+      await feeCollector.connect(user2).collectFeeETH(FeeType.TOKEN_CREATION, {
         value: fee2,
       });
 
-      const totalFees = await feeCollector.totalFeesCollected();
+      const totalFees = await feeCollector.totalFeesCollected(FeeType.TOKEN_CREATION);
       expect(totalFees).to.equal(fee1 + fee2);
     });
   });

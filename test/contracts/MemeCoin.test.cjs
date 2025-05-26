@@ -181,7 +181,7 @@ describe("MemeCoin", function () {
 
       await expect(
         memeCoin.mint(owner.address, ethers.parseEther("1000"))
-      ).to.be.revertedWith("Minting is disabled");
+      ).to.be.revertedWith("Minting is not enabled for this token");
     });
   });
 
@@ -225,7 +225,7 @@ describe("MemeCoin", function () {
 
       await expect(
         memeCoin.burn(ethers.parseEther("1000"))
-      ).to.be.revertedWith("Burning is disabled");
+      ).to.be.revertedWith("Burning is not enabled for this token");
     });
   });
 
@@ -233,8 +233,8 @@ describe("MemeCoin", function () {
     it("Should fail all pause operations if canPause is false", async function () {
       const { memeCoin, owner } = await loadFixture(deployMemeCoinFixture);
 
-      await expect(memeCoin.pause()).to.be.revertedWith("Pause is disabled");
-      await expect(memeCoin.unpause()).to.be.revertedWith("Pause is disabled");
+      await expect(memeCoin.pause()).to.be.revertedWith("Pausing is not enabled for this token");
+      await expect(memeCoin.unpause()).to.be.revertedWith("Pausing is not enabled for this token");
     });
 
     it("Should allow pause/unpause if canPause is true", async function () {
