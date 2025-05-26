@@ -29,29 +29,17 @@ vi.mock('@convex-dev/auth/react', () => ({
 
 describe('App', () => {
   it('renders without crashing', () => {
-    render(
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    )
-    expect(screen.getByText('TokenForge')).toBeInTheDocument()
+    render(<App />)
+    expect(screen.getByText('MemeCoinGen')).toBeInTheDocument()
   })
 
-  it('shows the welcome message', () => {
-    render(
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    )
-    expect(screen.getByText('Welcome to TokenForge')).toBeInTheDocument()
+  it('shows the header tagline', () => {
+    render(<App />)
+    expect(screen.getByText('🚀 Create • Deploy • Moon')).toBeInTheDocument()
   })
 
-  it('displays the tagline', () => {
-    render(
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    )
-    expect(screen.getByText('Create and deploy your own meme coins in minutes')).toBeInTheDocument()
+  it('displays welcome message when unauthenticated', () => {
+    render(<App />)
+    expect(screen.getByText('Welcome to MemeCoinGen')).toBeInTheDocument()
   })
 })

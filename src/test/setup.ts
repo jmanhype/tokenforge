@@ -9,7 +9,20 @@ afterEach(() => {
 })
 
 // Mock convex/react - need to use hoisted mock
-vi.mock('convex/react');
+vi.mock('convex/react', () => ({
+  useQuery: vi.fn(() => null),
+  useMutation: vi.fn(() => vi.fn()),
+  useAction: vi.fn(() => vi.fn()),
+  useConvex: vi.fn(() => ({})),
+  ConvexProvider: ({ children }: { children: React.ReactNode }) => children,
+  Authenticated: ({ children }: { children: React.ReactNode }) => children,
+  Unauthenticated: ({ children }: { children: React.ReactNode }) => children,
+  AuthLoading: ({ children }: { children: React.ReactNode }) => children,
+  useConvexAuth: vi.fn(() => ({
+    isAuthenticated: false,
+    isLoading: false,
+  })),
+}));
 
 // Mock convex generated API
 vi.mock('../../convex/_generated/api', () => ({
