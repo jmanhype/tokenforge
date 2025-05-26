@@ -1,224 +1,95 @@
-import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
-import { Request, Response, NextFunction } from 'express';
-import crypto from 'crypto';
-
-// Content Security Policy configuration
-export const contentSecurityPolicy = {
-  directives: {
-    defaultSrc: ["'self'"],
-    styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-    scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net"],
-    imgSrc: ["'self'", "data:", "https:", "blob:"],
-    connectSrc: ["'self'", "https:", "wss:"],
-    fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
-    objectSrc: ["'none'"],
-    mediaSrc: ["'self'"],
-    frameSrc: ["'none'"],
-    workerSrc: ["'self'", "blob:"],
-    childSrc: ["'self'", "blob:"],
-    formAction: ["'self'"],
-    frameAncestors: ["'none'"],
-    baseUri: ["'self'"],
-    manifestSrc: ["'self'"],
-  },
-};
-
-// Helmet security middleware configuration
-export const helmetConfig = helmet({
-  contentSecurityPolicy,
-  hsts: {
-    maxAge: 31536000,
-    includeSubDomains: true,
-    preload: true,
-  },
-  noSniff: true,
-  xssFilter: true,
-  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-  frameguard: { action: 'deny' },
-  permittedCrossDomainPolicies: false,
-});
-
-// Rate limiting configurations
-export const createRateLimiter = (windowMs: number, max: number, message?: string) => {
-  return rateLimit({
-    windowMs,
-    max,
-    message: message || 'Too many requests from this IP, please try again later.',
-    standardHeaders: true,
-    legacyHeaders: false,
-    handler: (req: Request, res: Response) => {
-      res.status(429).json({
-        error: 'Too Many Requests',
-        message: message || 'Rate limit exceeded. Please try again later.',
-        retryAfter: Math.ceil(windowMs / 1000),
-      });
-    },
-  });
-};
-
-// API rate limiters
-export const generalApiLimiter = createRateLimiter(
-  60 * 1000, // 1 minute
-  100, // 100 requests per minute
-  'API rate limit exceeded. Please try again in a minute.'
-);
-
-export const deploymentLimiter = createRateLimiter(
-  60 * 1000, // 1 minute
-  3, // 3 deployments per minute
-  'Deployment rate limit exceeded. Please wait before deploying another coin.'
-);
-
-export const authLimiter = createRateLimiter(
-  15 * 60 * 1000, // 15 minutes
-  5, // 5 attempts per 15 minutes
-  'Too many authentication attempts. Please try again later.'
-);
-
 // Input validation and sanitization
 export const sanitizeInput = (input: string): string => {
-  // Remove any potential script tags or dangerous HTML
+  // Remove HTML tags and potential XSS vectors
   return input
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+    .replace(/<[^>]*>/g, '') // Remove all HTML tags
+    .replace(/[<>]/g, '') // Remove angle brackets
     .replace(/javascript:/gi, '')
     .replace(/on\w+\s*=/gi, '')
+    .replace(/--/g, ' ') // Remove SQL comment syntax
     .trim();
 };
 
-// Validate Ethereum address
-export const isValidEthereumAddress = (address: string): boolean => {
-  return /^0x[a-fA-F0-9]{40}$/.test(address);
+// Token validation
+export const validateTokenName = (name: string): boolean => {
+  if (name.length < 2 || name.length > 50) return false;
+  // Allow letters, numbers, spaces, and common symbols
+  return /^[a-zA-Z0-9\s\-_.]+$/.test(name);
 };
 
-// Validate Solana address
-export const isValidSolanaAddress = (address: string): boolean => {
-  return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
+export const validateTokenSymbol = (symbol: string): boolean => {
+  if (symbol.length < 2 || symbol.length > 10) return false;
+  // Only allow uppercase letters and numbers
+  return /^[A-Z0-9]+$/.test(symbol.toUpperCase());
 };
 
-// Generate secure random tokens
-export const generateSecureToken = (length: number = 32): string => {
-  return crypto.randomBytes(length).toString('hex');
+export const validateSupply = (supply: number): boolean => {
+  return supply > 0 && supply <= 1e15 && Number.isInteger(supply);
 };
 
-// Hash sensitive data
-export const hashData = (data: string): string => {
-  return crypto.createHash('sha256').update(data).digest('hex');
+export const validateDescription = (description: string): boolean => {
+  return description.length <= 500;
 };
 
-// Verify request signature (for webhooks)
-export const verifyWebhookSignature = (
-  payload: string,
-  signature: string,
-  secret: string
-): boolean => {
-  const expectedSignature = crypto
-    .createHmac('sha256', secret)
-    .update(payload)
-    .digest('hex');
+// Address validation
+export const isValidAddress = (address: string, blockchain: 'ethereum' | 'solana' | 'bsc'): boolean => {
+  if (blockchain === 'ethereum' || blockchain === 'bsc') {
+    // Ethereum/BSC address format: 0x followed by 40 hex characters
+    return /^0x[a-fA-F0-9]{40}$/.test(address);
+  } else if (blockchain === 'solana') {
+    // Solana address format: base58 encoded, 32-44 characters
+    return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
+  }
+  return false;
+};
+
+// Transaction hash validation
+export const isValidTransactionHash = (hash: string, blockchain: 'ethereum' | 'solana' | 'bsc'): boolean => {
+  if (blockchain === 'ethereum' || blockchain === 'bsc') {
+    // Ethereum/BSC tx hash: 0x followed by 64 hex characters or just 64 hex characters
+    return /^(0x)?[a-fA-F0-9]{64}$/.test(hash);
+  } else if (blockchain === 'solana') {
+    // Solana tx signature: base58 encoded, typically 87-88 characters
+    return /^[1-9A-HJ-NP-Za-km-z]{87,88}$/.test(hash);
+  }
+  return false;
+};
+
+// Security headers for API responses
+export const getSecurityHeaders = () => ({
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'X-XSS-Protection': '1; mode=block',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'geolocation=(), microphone=(), camera=()',
+});
+
+// Rate limiting helper (client-side)
+export class RateLimiter {
+  private attempts: Map<string, number[]> = new Map();
   
-  return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expectedSignature)
-  );
-};
-
-// CORS configuration
-export const corsOptions = {
-  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-    const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
-      'https://memecoingen.com',
-      'https://www.memecoingen.com',
-      'https://api.memecoingen.com',
-    ];
+  constructor(
+    private maxAttempts: number,
+    private windowMs: number
+  ) {}
+  
+  isAllowed(key: string): boolean {
+    const now = Date.now();
+    const attempts = this.attempts.get(key) || [];
     
-    // Allow requests with no origin (mobile apps, Postman, etc.)
-    if (!origin) return callback(null, true);
+    // Remove old attempts outside the window
+    const validAttempts = attempts.filter(time => now - time < this.windowMs);
     
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
+    if (validAttempts.length >= this.maxAttempts) {
+      return false;
     }
-  },
-  credentials: true,
-  maxAge: 86400, // 24 hours
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-};
-
-// Security headers middleware
-export const securityHeaders = (req: Request, res: Response, next: NextFunction) => {
-  // Remove sensitive headers
-  res.removeHeader('X-Powered-By');
-  
-  // Add security headers
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
-  
-  // Add cache control for sensitive endpoints
-  if (req.path.includes('/api/') && !req.path.includes('/api/public/')) {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
+    
+    validAttempts.push(now);
+    this.attempts.set(key, validAttempts);
+    return true;
   }
   
-  next();
-};
-
-// Request ID middleware for tracking
-export const requestIdMiddleware = (req: Request, res: Response, next: NextFunction) => {
-  const requestId = req.headers['x-request-id'] || generateSecureToken(16);
-  req.headers['x-request-id'] = requestId as string;
-  res.setHeader('X-Request-ID', requestId);
-  next();
-};
-
-// IP whitelist/blacklist middleware
-export const ipFilterMiddleware = (
-  whitelist: string[] = [],
-  blacklist: string[] = []
-) => {
-  return (req: Request, res: Response, next: NextFunction) => {
-    const clientIp = req.ip || req.connection.remoteAddress || '';
-    
-    // Check blacklist first
-    if (blacklist.length > 0 && blacklist.includes(clientIp)) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-    
-    // Check whitelist if specified
-    if (whitelist.length > 0 && !whitelist.includes(clientIp)) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-    
-    next();
-  };
-};
-
-// Audit logging
-export interface AuditLog {
-  userId?: string;
-  action: string;
-  resourceType?: string;
-  resourceId?: string;
-  ipAddress: string;
-  userAgent?: string;
-  metadata?: Record<string, any>;
-  timestamp: Date;
+  reset(key: string): void {
+    this.attempts.delete(key);
+  }
 }
-
-export const createAuditLog = (req: Request, action: string, metadata?: Record<string, any>): AuditLog => {
-  return {
-    userId: (req as any).user?.id,
-    action,
-    ipAddress: req.ip || req.connection.remoteAddress || 'unknown',
-    userAgent: req.headers['user-agent'],
-    metadata,
-    timestamp: new Date(),
-  };
-};

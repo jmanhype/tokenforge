@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { ConvexProvider } from 'convex/react'
+import { BrowserRouter } from 'react-router-dom'
 import { CoinCard } from '../CoinCard'
+import { ConvexProvider } from 'convex/react'
 
 // Mock Convex client
 const mockClient = {
@@ -11,14 +12,14 @@ const mockClient = {
   action: vi.fn(),
 }
 
-// Mock useQuery to return null analytics
-vi.mock('convex/react', async () => {
-  const actual = await vi.importActual('convex/react')
-  return {
-    ...actual,
-    useQuery: () => null,
-  }
-})
+// Wrapper component for tests
+const TestWrapper = ({ children }: { children: React.ReactNode }) => (
+  <BrowserRouter>
+    <ConvexProvider client={mockClient as any}>
+      {children}
+    </ConvexProvider>
+  </BrowserRouter>
+)
 
 describe('CoinCard', () => {
   const mockCoin = {
@@ -49,11 +50,7 @@ describe('CoinCard', () => {
   }
 
   it('renders coin information correctly', () => {
-    render(
-      <ConvexProvider client={mockClient as any}>
-        <CoinCard coin={mockCoin} />
-      </ConvexProvider>
-    )
+    render(<CoinCard coin={mockCoin} />, { wrapper: TestWrapper })
     
     expect(screen.getByText('Test Coin')).toBeInTheDocument()
     expect(screen.getByText('TEST')).toBeInTheDocument()
@@ -61,22 +58,14 @@ describe('CoinCard', () => {
   })
 
   it('displays blockchain badge', () => {
-    render(
-      <ConvexProvider client={mockClient as any}>
-        <CoinCard coin={mockCoin} />
-      </ConvexProvider>
-    )
+    render(<CoinCard coin={mockCoin} />, { wrapper: TestWrapper })
     
     // Blockchain is not displayed as text in CoinCard currently
     // Would need to add blockchain badge to the component
   })
 
   it('shows deployment status', () => {
-    render(
-      <ConvexProvider client={mockClient as any}>
-        <CoinCard coin={mockCoin} />
-      </ConvexProvider>
-    )
+    render(<CoinCard coin={mockCoin} />, { wrapper: TestWrapper })
     
     // Status includes emoji, so we need to check for the container
     const statusElement = screen.getByText(/deployed/i)
@@ -84,22 +73,14 @@ describe('CoinCard', () => {
   })
 
   it('displays features correctly', () => {
-    render(
-      <ConvexProvider client={mockClient as any}>
-        <CoinCard coin={mockCoin} />
-      </ConvexProvider>
-    )
+    render(<CoinCard coin={mockCoin} />, { wrapper: TestWrapper })
     
     expect(screen.getByText('🪙 Mintable')).toBeInTheDocument()
     // Pausable is not shown because canPause is true but it's not in the features array
   })
 
   it('shows analytics when available', () => {
-    render(
-      <ConvexProvider client={mockClient as any}>
-        <CoinCard coin={mockCoin} />
-      </ConvexProvider>
-    )
+    render(<CoinCard coin={mockCoin} />, { wrapper: TestWrapper })
     
     // Analytics are shown only when showAnalytics prop is true
     // and they come from useQuery, which returns null in our mock
@@ -107,11 +88,7 @@ describe('CoinCard', () => {
 
   it('handles missing analytics gracefully', () => {
     const coinWithoutAnalytics = { ...mockCoin, analytics: undefined }
-    render(
-      <ConvexProvider client={mockClient as any}>
-        <CoinCard coin={coinWithoutAnalytics} />
-      </ConvexProvider>
-    )
+    render(<CoinCard coin={coinWithoutAnalytics} />, { wrapper: TestWrapper })
     
     // Should render without errors
     expect(screen.getByText('Test Coin')).toBeInTheDocument()

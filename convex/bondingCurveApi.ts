@@ -125,7 +125,7 @@ export const buy = mutation({
           await ctx.db.patch(args.coinId, { status: "graduated" as any });
           
           // Queue DEX deployment
-          await ctx.scheduler.runAfter(0, internal.jobQueue.enqueue, {
+          await ctx.scheduler.runAfter(0, internal.jobQueue.enqueue as any, {
             type: "deploy_to_dex",
             payload: {
               coinId: args.coinId,

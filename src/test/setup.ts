@@ -1,10 +1,33 @@
 import '@testing-library/jest-dom'
 import { cleanup } from '@testing-library/react'
-import { afterEach } from 'vitest'
+import { afterEach, vi } from 'vitest'
+import React from 'react'
 
 // Cleanup after each test
 afterEach(() => {
   cleanup()
+})
+
+// Mock convex/react
+vi.mock('convex/react', () => ({
+  useQuery: vi.fn(() => null),
+  useMutation: vi.fn(() => vi.fn()),
+  useAction: vi.fn(() => vi.fn()),
+  useConvex: vi.fn(() => ({})),
+  ConvexProvider: ({ children }: { children: React.ReactNode }) => children,
+}))
+
+// Mock react-router-dom
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom')
+  return {
+    ...actual,
+    BrowserRouter: ({ children }: { children: React.ReactNode }) => children,
+    Link: ({ children, ...props }: any) => <a {...props}>{children}</a>,
+    useNavigate: () => vi.fn(),
+    useLocation: () => ({ pathname: '/' }),
+    useParams: () => ({}),
+  }
 })
 
 // Mock window.matchMedia
