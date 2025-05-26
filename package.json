@@ -67,7 +67,7 @@
     "@commitlint/cli": "^19.8.1",
     "chalk": "^5.3.0",
     "inquirer": "^12.6.3",
-    "tsx": "^4.22.1",
+    "tsx": "^4.19.4",
     "@commitlint/config-conventional": "^19.8.1",
     "@eslint/js": "^9.21.0",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
