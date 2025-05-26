@@ -7,6 +7,7 @@ import { CoinGenerator } from '../CoinGenerator'
 vi.mock('convex/react', () => ({
   useMutation: () => vi.fn(),
   useQuery: () => null,
+  useAction: () => vi.fn(),
 }))
 
 // Mock sonner

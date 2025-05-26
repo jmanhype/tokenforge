@@ -1,5 +1,4 @@
-const { expect } = require("chai");
-const { ethers } = require("hardhat");
+const { ethers, expect } = require("./setup.cjs");
 const { loadFixture } = require("@nomicfoundation/hardhat-network-helpers");
 
 describe("MemeCoin", function () {
@@ -11,7 +10,7 @@ describe("MemeCoin", function () {
     const memeCoin = await MemeCoin.deploy(
       "Test Meme Coin",
       "TMC",
-      ethers.parseEther("1000000"), // 1M tokens
+      1000000, // 1M tokens (in whole tokens, contract will multiply by 10^18)
       owner.address,
       true, // canMint
       true, // canBurn
@@ -173,7 +172,7 @@ describe("MemeCoin", function () {
       const memeCoin = await MemeCoin.deploy(
         "No Mint Coin",
         "NMC",
-        ethers.parseEther("1000000"),
+        1000000,
         owner.address,
         false, // canMint
         true,
@@ -182,7 +181,7 @@ describe("MemeCoin", function () {
 
       await expect(
         memeCoin.mint(owner.address, ethers.parseEther("1000"))
-      ).to.be.revertedWith("Minting is disabled");
+      ).to.be.revertedWith("Minting is not enabled for this token");
     });
   });
 
@@ -217,7 +216,7 @@ describe("MemeCoin", function () {
       const memeCoin = await MemeCoin.deploy(
         "No Burn Coin",
         "NBC",
-        ethers.parseEther("1000000"),
+        1000000,
         owner.address,
         true,
         false, // canBurn
@@ -226,7 +225,7 @@ describe("MemeCoin", function () {
 
       await expect(
         memeCoin.burn(ethers.parseEther("1000"))
-      ).to.be.revertedWith("Burning is disabled");
+      ).to.be.revertedWith("Burning is not enabled for this token");
     });
   });
 
@@ -234,8 +233,8 @@ describe("MemeCoin", function () {
     it("Should fail all pause operations if canPause is false", async function () {
       const { memeCoin, owner } = await loadFixture(deployMemeCoinFixture);
 
-      await expect(memeCoin.pause()).to.be.revertedWith("Pause is disabled");
-      await expect(memeCoin.unpause()).to.be.revertedWith("Pause is disabled");
+      await expect(memeCoin.pause()).to.be.revertedWith("Pausing is not enabled for this token");
+      await expect(memeCoin.unpause()).to.be.revertedWith("Pausing is not enabled for this token");
     });
 
     it("Should allow pause/unpause if canPause is true", async function () {
@@ -244,7 +243,7 @@ describe("MemeCoin", function () {
       const memeCoin = await MemeCoin.deploy(
         "Pausable Coin",
         "PC",
-        ethers.parseEther("1000000"),
+        1000000,
         owner.address,
         true,
         true,
@@ -269,7 +268,7 @@ describe("MemeCoin", function () {
       const memeCoin = await MemeCoin.deploy(
         "Pausable Coin",
         "PC",
-        ethers.parseEther("1000000"),
+        1000000,
         owner.address,
         true,
         true,
@@ -302,8 +301,8 @@ describe("MemeCoin", function () {
       const [owner] = await ethers.getSigners();
       const MemeCoin = await ethers.getContractFactory("MemeCoin");
       
-      // Deploy with maximum uint256 supply
-      const maxSupply = ethers.MaxUint256;
+      // Deploy with maximum allowed supply (1 trillion tokens)
+      const maxSupply = 1000000000000; // 1 trillion tokens
       const memeCoin = await MemeCoin.deploy(
         "Max Supply Coin",
         "MSC",
@@ -314,13 +313,14 @@ describe("MemeCoin", function () {
         false
       );
 
-      expect(await memeCoin.totalSupply()).to.equal(maxSupply);
-      expect(await memeCoin.balanceOf(owner.address)).to.equal(maxSupply);
+      const expectedSupply = ethers.parseEther(maxSupply.toString());
+      expect(await memeCoin.totalSupply()).to.equal(expectedSupply);
+      expect(await memeCoin.balanceOf(owner.address)).to.equal(expectedSupply);
 
-      // Should fail to mint more (would overflow)
+      // Should fail to mint more (would exceed MAX_SUPPLY)
       await expect(
         memeCoin.mint(owner.address, 1)
-      ).to.be.reverted;
+      ).to.be.revertedWith("Minting would exceed maximum supply");
     });
   });
 });

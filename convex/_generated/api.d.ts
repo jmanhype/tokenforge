@@ -13,6 +13,7 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as analytics_blockchainData from "../analytics/blockchainData.js";
 import type * as analytics_blockchainExplorers from "../analytics/blockchainExplorers.js";
 import type * as analytics_cache from "../analytics/cache.js";
 import type * as analytics_coingecko from "../analytics/coingecko.js";
@@ -20,7 +21,10 @@ import type * as analytics_geckoterminal from "../analytics/geckoterminal.js";
 import type * as analytics_rateLimiter from "../analytics/rateLimiter.js";
 import type * as analytics from "../analytics.js";
 import type * as auth from "../auth.js";
+import type * as autoLiquidity from "../autoLiquidity.js";
+import type * as blockchain_bondingCurveIntegration from "../blockchain/bondingCurveIntegration.js";
 import type * as blockchain_contractData from "../blockchain/contractData.js";
+import type * as blockchain_contractVerification from "../blockchain/contractVerification.js";
 import type * as blockchain_ethereum from "../blockchain/ethereum.js";
 import type * as blockchain_realDeployment from "../blockchain/realDeployment.js";
 import type * as blockchain_solana from "../blockchain/solana.js";
@@ -39,6 +43,7 @@ import type * as dex_graduation from "../dex/graduation.js";
 import type * as dex_liquidityManager from "../dex/liquidityManager.js";
 import type * as dex_pancakeswapV3 from "../dex/pancakeswapV3.js";
 import type * as dex_uniswapV3 from "../dex/uniswapV3.js";
+import type * as fairLaunch from "../fairLaunch.js";
 import type * as fees_feeManager from "../fees/feeManager.js";
 import type * as fees_initializeFees from "../fees/initializeFees.js";
 import type * as http from "../http.js";
@@ -52,6 +57,7 @@ import type * as monitoring from "../monitoring.js";
 import type * as monitoringApi from "../monitoringApi.js";
 import type * as notifications from "../notifications.js";
 import type * as oracles_priceOracle from "../oracles/priceOracle.js";
+import type * as reflections from "../reflections.js";
 import type * as revenue_creatorRevenue from "../revenue/creatorRevenue.js";
 import type * as router from "../router.js";
 import type * as security_multiSigActions from "../security/multiSigActions.js";
@@ -65,6 +71,7 @@ import type * as social_trending from "../social/trending.js";
 import type * as social_twitter from "../social/twitter.js";
 import type * as social_utils from "../social/utils.js";
 import type * as social from "../social.js";
+import type * as tokenBurn from "../tokenBurn.js";
 import type * as users from "../users.js";
 
 /**
@@ -76,6 +83,7 @@ import type * as users from "../users.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  "analytics/blockchainData": typeof analytics_blockchainData;
   "analytics/blockchainExplorers": typeof analytics_blockchainExplorers;
   "analytics/cache": typeof analytics_cache;
   "analytics/coingecko": typeof analytics_coingecko;
@@ -83,7 +91,10 @@ declare const fullApi: ApiFromModules<{
   "analytics/rateLimiter": typeof analytics_rateLimiter;
   analytics: typeof analytics;
   auth: typeof auth;
+  autoLiquidity: typeof autoLiquidity;
+  "blockchain/bondingCurveIntegration": typeof blockchain_bondingCurveIntegration;
   "blockchain/contractData": typeof blockchain_contractData;
+  "blockchain/contractVerification": typeof blockchain_contractVerification;
   "blockchain/ethereum": typeof blockchain_ethereum;
   "blockchain/realDeployment": typeof blockchain_realDeployment;
   "blockchain/solana": typeof blockchain_solana;
@@ -102,6 +113,7 @@ declare const fullApi: ApiFromModules<{
   "dex/liquidityManager": typeof dex_liquidityManager;
   "dex/pancakeswapV3": typeof dex_pancakeswapV3;
   "dex/uniswapV3": typeof dex_uniswapV3;
+  fairLaunch: typeof fairLaunch;
   "fees/feeManager": typeof fees_feeManager;
   "fees/initializeFees": typeof fees_initializeFees;
   http: typeof http;
@@ -115,6 +127,7 @@ declare const fullApi: ApiFromModules<{
   monitoringApi: typeof monitoringApi;
   notifications: typeof notifications;
   "oracles/priceOracle": typeof oracles_priceOracle;
+  reflections: typeof reflections;
   "revenue/creatorRevenue": typeof revenue_creatorRevenue;
   router: typeof router;
   "security/multiSigActions": typeof security_multiSigActions;
@@ -128,6 +141,7 @@ declare const fullApi: ApiFromModules<{
   "social/twitter": typeof social_twitter;
   "social/utils": typeof social_utils;
   social: typeof social;
+  tokenBurn: typeof tokenBurn;
   users: typeof users;
 }>;
 export declare const api: FilterApi<

@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 
 // Cache configuration
 const CACHE_TTL = {
@@ -60,7 +61,7 @@ export const get = internalQuery({
     // Check if expired
     if (cached.expiresAt < Date.now()) {
       // Schedule deletion
-      await ctx.scheduler.runAfter(0, "cache:invalidate", { key: args.key });
+      await ctx.scheduler.runAfter(0, internal.cache.invalidate as any, { key: args.key });
       return null;
     }
 
@@ -136,7 +137,7 @@ export function cachedQuery<Args extends Record<string, any>, Result>(
       const cacheKey = key(args);
       
       // Try to get from cache
-      const cached = await ctx.runQuery("cache:get", { key: cacheKey });
+      const cached = await ctx.runQuery(internal.cache.get, { key: cacheKey });
       if (cached !== null) {
         return cached as Result;
       }
@@ -145,7 +146,7 @@ export function cachedQuery<Args extends Record<string, any>, Result>(
       const result = await queryFn(ctx, args);
 
       // Store in cache
-      await ctx.scheduler.runAfter(0, "cache:set", {
+      await ctx.scheduler.runAfter(0, internal.cache.set as any, {
         key: cacheKey,
         value: result,
         ttl,
