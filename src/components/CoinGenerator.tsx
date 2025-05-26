@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
 
@@ -14,9 +14,13 @@ export function CoinGenerator() {
     description: "",
     blockchain: "ethereum" as "ethereum" | "solana" | "bsc",
   });
+  
+  const [showRevenueInfo, setShowRevenueInfo] = useState(false);
+  const [showFairLaunchInfo, setShowFairLaunchInfo] = useState(false);
 
-  const createCoin = useMutation(api.memeCoins.createMemeCoin);
+  const createCoin = useAction(api.memeCoins.createMemeCoin);
   const rateLimit = useQuery(api.memeCoins.checkRateLimit);
+  const [showFeeInfo, setShowFeeInfo] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -30,7 +34,12 @@ export function CoinGenerator() {
     setIsCreating(true);
     
     try {
-      const coinId = await createCoin(formData);
+      const result = await createCoin(formData);
+      
+      if (result.fee > 0) {
+        toast.info(`Fee: ${result.fee} ETH collected`);
+      }
+      
       toast.success(`🚀 ${formData.name} (${formData.symbol}) is being deployed!`);
       
       // Reset form
@@ -220,14 +229,92 @@ export function CoinGenerator() {
           </button>
         </form>
 
+        {/* Fee Information */}
+        <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="font-medium text-yellow-900">Platform Fee</h4>
+            <button
+              type="button"
+              onClick={() => setShowFeeInfo(!showFeeInfo)}
+              className="text-sm text-yellow-700 hover:text-yellow-800"
+            >
+              {showFeeInfo ? "Hide" : "Show"} details
+            </button>
+          </div>
+          <p className="text-sm text-yellow-800">
+            Token creation: 0.01 ETH (testnet)
+          </p>
+          {showFeeInfo && (
+            <div className="mt-2 text-xs text-yellow-700 space-y-1">
+              <p>• Covers smart contract deployment gas</p>
+              <p>• Funds platform development</p>
+              <p>• Ensures serious creators only</p>
+            </div>
+          )}
+        </div>
+        
+        {/* Revenue Sharing Information */}
+        <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="font-medium text-green-900">💰 Revenue Sharing (New!)</h4>
+            <button
+              type="button"
+              onClick={() => setShowRevenueInfo(!showRevenueInfo)}
+              className="text-sm text-green-700 hover:text-green-800"
+            >
+              {showRevenueInfo ? "Hide" : "Show"} details
+            </button>
+          </div>
+          <p className="text-sm text-green-800">
+            Earn 1% on all token trades as the creator!
+          </p>
+          {showRevenueInfo && (
+            <div className="mt-2 text-xs text-green-700 space-y-1">
+              <p>• 1% creator fee on all bonding curve trades</p>
+              <p>• 1% creator fee on all DEX trades (after graduation)</p>
+              <p>• Real-time revenue tracking dashboard</p>
+              <p>• Instant withdrawal to your wallet</p>
+              <p>• Transparent on-chain accounting</p>
+            </div>
+          )}
+        </div>
+        
+        {/* Fair Launch Information */}
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="font-medium text-blue-900">⚡ Fair Launch Protection</h4>
+            <button
+              type="button"
+              onClick={() => setShowFairLaunchInfo(!showFairLaunchInfo)}
+              className="text-sm text-blue-700 hover:text-blue-800"
+            >
+              {showFairLaunchInfo ? "Hide" : "Show"} details
+            </button>
+          </div>
+          <p className="text-sm text-blue-800">
+            Anti-snipe & fair distribution mechanisms enabled by default
+          </p>
+          {showFairLaunchInfo && (
+            <div className="mt-2 text-xs text-blue-700 space-y-1">
+              <p>• Max 1% of supply per wallet</p>
+              <p>• Max 0.5% per transaction</p>
+              <p>• 5-minute cooldown between buys</p>
+              <p>• 3-block anti-snipe protection</p>
+              <p>• Bot protection & blacklist controls</p>
+              <p>• Customizable after deployment</p>
+            </div>
+          )}
+        </div>
+        
         {/* Info Box */}
-        <div className="mt-8 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg">
+        <div className="mt-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg">
           <h4 className="font-medium text-gray-900 mb-2">🎯 What happens next?</h4>
           <ul className="text-sm text-gray-600 space-y-1">
             <li>• Smart contract deployment on your chosen blockchain</li>
             <li>• Automatic social media announcements</li>
             <li>• Real-time analytics tracking</li>
             <li>• Community building tools</li>
+            <li>• Revenue sharing automatically enabled</li>
           </ul>
         </div>
       </div>

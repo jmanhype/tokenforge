@@ -6,7 +6,11 @@ import { Toaster } from "sonner";
 import { CoinGenerator } from "./components/CoinGenerator";
 import { Dashboard } from "./components/Dashboard";
 import { UserCoins } from "./components/UserCoins";
+import TrendingTokens from "./components/social/TrendingTokens";
 import { TradingPage } from "./pages/TradingPage";
+import MonitoringDashboard from "./components/MonitoringDashboard";
+import TokenAnalyticsPage from "./pages/TokenAnalyticsPage";
+import CreatorDashboard from "./components/CreatorDashboard";
 import { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
@@ -15,6 +19,8 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/trade/:coinId" element={<TradingPage />} />
+        <Route path="/analytics/:tokenId" element={<TokenAnalyticsPage />} />
+        <Route path="/monitoring" element={<MonitoringDashboard />} />
         <Route path="/*" element={<MainApp />} />
       </Routes>
       <Toaster position="top-right" />
@@ -23,7 +29,7 @@ export default function App() {
 }
 
 function MainApp() {
-  const [activeTab, setActiveTab] = useState<"create" | "dashboard" | "my-coins">("create");
+  const [activeTab, setActiveTab] = useState<"create" | "dashboard" | "trending" | "my-coins" | "creator-revenue">("create");
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-purple-50 to-blue-50">
@@ -50,8 +56,8 @@ function Content({
   activeTab, 
   setActiveTab 
 }: { 
-  activeTab: "create" | "dashboard" | "my-coins";
-  setActiveTab: (tab: "create" | "dashboard" | "my-coins") => void;
+  activeTab: "create" | "dashboard" | "trending" | "my-coins" | "creator-revenue";
+  setActiveTab: (tab: "create" | "dashboard" | "trending" | "my-coins" | "creator-revenue") => void;
 }) {
   const loggedInUser = useQuery(api.auth.loggedInUser);
 
@@ -110,6 +116,16 @@ function Content({
             📊 Market Dashboard
           </button>
           <button
+            onClick={() => setActiveTab("trending")}
+            className={`px-6 py-2 rounded-md font-medium transition-all ${
+              activeTab === "trending"
+                ? "bg-white text-purple-600 shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            🔥 Trending
+          </button>
+          <button
             onClick={() => setActiveTab("my-coins")}
             className={`px-6 py-2 rounded-md font-medium transition-all ${
               activeTab === "my-coins"
@@ -119,12 +135,24 @@ function Content({
           >
             💎 My Coins
           </button>
+          <button
+            onClick={() => setActiveTab("creator-revenue")}
+            className={`px-6 py-2 rounded-md font-medium transition-all ${
+              activeTab === "creator-revenue"
+                ? "bg-white text-purple-600 shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            💰 Revenue
+          </button>
         </div>
 
         {/* Tab Content */}
         {activeTab === "create" && <CoinGenerator />}
         {activeTab === "dashboard" && <Dashboard />}
+        {activeTab === "trending" && <TrendingTokens />}
         {activeTab === "my-coins" && <UserCoins />}
+        {activeTab === "creator-revenue" && <CreatorDashboard />}
       </Authenticated>
     </div>
   );
