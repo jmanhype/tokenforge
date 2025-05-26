@@ -8,14 +8,8 @@ afterEach(() => {
   cleanup()
 })
 
-// Mock convex/react
-vi.mock('convex/react', () => ({
-  useQuery: vi.fn(() => null),
-  useMutation: vi.fn(() => vi.fn()),
-  useAction: vi.fn(() => vi.fn()),
-  useConvex: vi.fn(() => ({})),
-  ConvexProvider: ({ children }: { children: React.ReactNode }) => children,
-}))
+// Mock convex/react - need to use hoisted mock
+vi.mock('convex/react');
 
 // Mock react-router-dom
 vi.mock('react-router-dom', async () => {

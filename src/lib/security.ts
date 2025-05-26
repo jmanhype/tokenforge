@@ -2,11 +2,14 @@
 export const sanitizeInput = (input: string): string => {
   // Remove HTML tags and potential XSS vectors
   return input
-    .replace(/<[^>]*>/g, '') // Remove all HTML tags
+    .replace(/<script[^>]*>.*?<\/script>/gi, '') // Remove script tags and content
+    .replace(/<[^>]*>/g, '') // Remove all other HTML tags
     .replace(/[<>]/g, '') // Remove angle brackets
     .replace(/javascript:/gi, '')
     .replace(/on\w+\s*=/gi, '')
     .replace(/--/g, ' ') // Remove SQL comment syntax
+    .replace(/'/g, '') // Remove single quotes
+    .replace(/=/g, '') // Remove equals signs
     .trim();
 };
 
