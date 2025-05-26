@@ -221,20 +221,30 @@ export function CoinCard({ coin, showAnalytics = false }: CoinCardProps) {
         <div className="text-sm text-gray-500">
           <span>Supply: {coin.initialSupply.toLocaleString()}</span>
         </div>
-        {coin.bondingCurve?.isActive && (
-          <Link
-            to={`/trade/${coin._id}`}
-            className="px-3 py-1 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-1"
-          >
-            <TrendingUp className="w-3 h-3" />
-            Trade
-          </Link>
-        )}
-        {!coin.bondingCurve?.isActive && coin.status === "graduated" && (
-          <span className="text-sm text-purple-600 font-medium">
-            Trading on DEX
-          </span>
-        )}
+        <div className="flex gap-2">
+          {coin.bondingCurve?.isActive && (
+            <Link
+              to={`/trade/${coin._id}`}
+              className="px-3 py-1 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-1"
+            >
+              <TrendingUp className="w-3 h-3" />
+              Trade
+            </Link>
+          )}
+          {coin.status === "deployed" && (
+            <Link
+              to={`/analytics/${coin._id}`}
+              className="px-3 py-1 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-1"
+            >
+              📊 Analytics
+            </Link>
+          )}
+          {!coin.bondingCurve?.isActive && coin.status === "graduated" && (
+            <span className="text-sm text-purple-600 font-medium">
+              Trading on DEX
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

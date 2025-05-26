@@ -2,15 +2,20 @@ import { useParams } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
+import TradingInterface from "../components/TradingInterface";
+import CommentSection from "../components/social/CommentSection";
+import ReactionButtons from "../components/social/ReactionButtons";
 import { BondingCurveChart } from "../components/BondingCurveChart";
 import { TradingPanel } from "../components/TradingPanel";
 import { TokenMetrics } from "../components/TokenMetrics";
 import { TransactionHistory } from "../components/TransactionHistory";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, MessageCircle } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useState } from "react";
 
 export function TradingPage() {
   const { coinId } = useParams<{ coinId: string }>();
+  const [showComments, setShowComments] = useState(false);
   
   if (!coinId) {
     return <div className="text-white">Invalid coin ID</div>;
@@ -19,6 +24,7 @@ export function TradingPage() {
   const coin = useQuery(api.memeCoins.getCoin, { coinId: coinId as Id<"memeCoins"> });
   const curveData = useQuery(api.bondingCurveApi.getCurveData, { coinId: coinId as Id<"memeCoins"> });
   const userBalance = useQuery(api.bondingCurveApi.getUserBalance, { coinId: coinId as Id<"memeCoins"> });
+  const commentCount = useQuery(api.social.comments.getCommentCount, { tokenId: coinId as Id<"memeCoins"> });
 
   if (coin === undefined || curveData === undefined || userBalance === undefined) {
     return (
@@ -72,15 +78,15 @@ export function TradingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50">
       {/* Header */}
-      <div className="bg-gray-900 border-b border-gray-800">
+      <div className="bg-white/90 backdrop-blur-sm shadow-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link
                 to="/"
-                className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <ArrowLeft className="w-5 h-5" />
               </Link>
@@ -89,13 +95,13 @@ export function TradingPage() {
                   {coin.symbol.charAt(0)}
                 </div>
                 <div>
-                  <h1 className="text-xl font-bold text-white">{coin.name}</h1>
-                  <p className="text-sm text-gray-400">{coin.symbol}</p>
+                  <h1 className="text-xl font-bold text-gray-900">{coin.name}</h1>
+                  <p className="text-sm text-gray-600">{coin.symbol}</p>
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-400">
+              <span className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
                 {coin.deployment?.blockchain.toUpperCase()}
               </span>
             </div>
@@ -104,58 +110,93 @@ export function TradingPage() {
       </div>
 
       {/* Main Content */}
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 space-y-8">
+        {/* Reactions Section */}
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          <h3 className="text-lg font-bold mb-4">Community Sentiment</h3>
+          <ReactionButtons tokenId={coin._id} size="lg" />
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Chart & Metrics */}
+          {/* Left Column - Trading Interface */}
           <div className="lg:col-span-2 space-y-8">
-            <BondingCurveChart
-              currentSupply={curveData.currentSupply}
-              currentPrice={curveData.currentPrice}
-              reserveBalance={curveData.reserveBalance}
-              marketCap={curveData.marketCap}
-              priceHistory={curveData.priceHistory}
-            />
+            <TradingInterface coinId={coin._id} />
             
-            <TokenMetrics
-              marketCap={curveData.marketCap}
-              price={curveData.currentPrice}
-              priceChange24h={0} // TODO: Calculate from price history
-              volume24h={curveData.totalVolume}
-              holders={curveData.holders}
-              totalSupply={coin.initialSupply}
-              circulatingSupply={curveData.currentSupply}
-              reserveBalance={curveData.reserveBalance}
-              totalTransactions={curveData.totalTransactions}
-              bondingCurveProgress={curveData.progress}
-            />
-            
-            <TransactionHistory
-              transactions={curveData.recentTransactions.map((tx: any) => ({
-                _id: tx._id,
-                type: tx.type,
-                user: tx.user,
-                amount: tx.amountIn || tx.amountOut || 0,
-                tokens: tx.tokensOut || tx.tokensIn || 0,
-                price: tx.price || 0,
-                timestamp: tx.timestamp,
-                txHash: tx.txHash,
-              }))}
-              blockchain={coin.deployment?.blockchain}
-            />
+            {/* Comments Section */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-bold flex items-center gap-2">
+                  <MessageCircle className="w-5 h-5" />
+                  Comments
+                  {commentCount !== undefined && (
+                    <span className="text-sm font-normal text-gray-600">({commentCount})</span>
+                  )}
+                </h3>
+                <button
+                  onClick={() => setShowComments(!showComments)}
+                  className="text-sm text-purple-600 hover:text-purple-700"
+                >
+                  {showComments ? "Hide" : "Show"} Comments
+                </button>
+              </div>
+              {showComments && <CommentSection tokenId={coin._id} />}
+            </div>
           </div>
 
-          {/* Right Column - Trading Panel */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-8">
-              <TradingPanel
-                coinId={coin._id}
-                currentPrice={curveData.currentPrice}
-                reserveBalance={curveData.reserveBalance}
-                totalSupply={curveData.currentSupply}
-                userBalance={userBalance.usdBalance}
-                userTokenBalance={userBalance.balance}
-              />
+          {/* Right Column - Additional Info */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* Recent Transactions */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h3 className="text-lg font-bold mb-4">Recent Trades</h3>
+              <div className="space-y-3">
+                {curveData.recentTransactions.slice(0, 10).map((tx: any) => (
+                  <div key={tx._id} className="flex justify-between items-center text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className={`font-medium ${tx.type === 'buy' ? 'text-green-600' : 'text-red-600'}`}>
+                        {tx.type.toUpperCase()}
+                      </span>
+                      <span className="text-gray-600">
+                        {tx.type === 'buy' ? tx.tokensOut?.toLocaleString() : tx.tokensIn?.toLocaleString()} {coin.symbol}
+                      </span>
+                    </div>
+                    <span className="text-gray-500">
+                      {new Date(tx.timestamp).toLocaleTimeString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
+
+            {/* Bonding Curve Info */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h3 className="text-lg font-bold mb-4">Bonding Curve Info</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Curve Formula</span>
+                  <span className="font-mono text-sm">x^1.5</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Trading Fee</span>
+                  <span className="text-sm font-medium">1%</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Graduation Target</span>
+                  <span className="text-sm font-medium">$100,000</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">DEX Liquidity</span>
+                  <span className="text-sm font-medium">17% of reserves</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Token Info */}
+            {coin.description && (
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <h3 className="text-lg font-bold mb-4">About {coin.name}</h3>
+                <p className="text-sm text-gray-600">{coin.description}</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
