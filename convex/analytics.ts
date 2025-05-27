@@ -112,7 +112,7 @@ export const getTokenAnalytics = query({
     // Get bonding curve for real blockchain data
     const bondingCurve = await ctx.db
       .query("bondingCurves")
-      .withIndex("byTokenId", (q) => q.eq("tokenId", args.tokenId))
+      .withIndex("by_coin", (q) => q.eq("coinId", args.tokenId))
       .first();
 
     let holderDistribution: any[] = [];

@@ -241,7 +241,7 @@ export const recordLiquidityProvision = internalMutation({
     // Update bonding curve with DEX pool info if not already set
     const bondingCurve = await ctx.db
       .query("bondingCurves")
-      .withIndex("byTokenId", (q) => q.eq("tokenId", args.tokenId))
+      .withIndex("by_coin", (q) => q.eq("coinId", args.tokenId))
       .first();
     
     if (bondingCurve && !bondingCurve.dexPoolAddress) {

@@ -95,8 +95,8 @@ const applicationTables = {
     transactions: v.optional(v.number()), // Total transaction count
   })
     .index("by_coin", ["coinId"])
-    .index("by_active", ["isActive"])
-    .index("byTokenId", ["tokenId"]), // Added for compatibility with existing code
+    .index("by_active", ["isActive"]),
+    // Removed byTokenId index since tokenId is optional
   
   // Bonding curve transactions
   bondingCurveTransactions: defineTable({

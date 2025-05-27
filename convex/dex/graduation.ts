@@ -40,7 +40,7 @@ export const checkGraduationEligibility = action({
     // Get bonding curve data
     const bondingCurve = await ctx.db
       .query("bondingCurves")
-      .withIndex("byTokenId", (q) => q.eq("tokenId", args.tokenId))
+      .withIndex("by_coin", (q) => q.eq("coinId", args.tokenId))
       .first();
     
     if (!bondingCurve) {
@@ -125,7 +125,7 @@ export const graduateToken = action({
     // Get bonding curve data
     const bondingCurve = await ctx.db
       .query("bondingCurves")
-      .withIndex("byTokenId", (q) => q.eq("tokenId", args.tokenId))
+      .withIndex("by_coin", (q) => q.eq("coinId", args.tokenId))
       .first();
     
     if (!bondingCurve) throw new Error("No bonding curve data");

@@ -292,7 +292,7 @@ export const getBondingCurve = query({
   handler: async (ctx, args) => {
     return await ctx.db
       .query("bondingCurves")
-      .withIndex("byTokenId", (q) => q.eq("tokenId", args.tokenId))
+      .withIndex("by_coin", (q) => q.eq("coinId", args.tokenId))
       .first();
   },
 });
@@ -306,7 +306,7 @@ export const calculateBuyAmount = query({
   handler: async (ctx, args) => {
     const bondingCurve = await ctx.db
       .query("bondingCurves")
-      .withIndex("byTokenId", (q) => q.eq("tokenId", args.tokenId))
+      .withIndex("by_coin", (q) => q.eq("coinId", args.tokenId))
       .first();
     
     if (!bondingCurve) throw new Error("Bonding curve not found");
@@ -362,7 +362,7 @@ export const calculateSellReturn = query({
   handler: async (ctx, args) => {
     const bondingCurve = await ctx.db
       .query("bondingCurves")
-      .withIndex("byTokenId", (q) => q.eq("tokenId", args.tokenId))
+      .withIndex("by_coin", (q) => q.eq("coinId", args.tokenId))
       .first();
     
     if (!bondingCurve) throw new Error("Bonding curve not found");
@@ -424,7 +424,7 @@ export const recordBuyTransaction = mutation({
     // Get bonding curve
     const bondingCurve = await ctx.db
       .query("bondingCurves")
-      .withIndex("byTokenId", (q) => q.eq("tokenId", args.tokenId))
+      .withIndex("by_coin", (q) => q.eq("coinId", args.tokenId))
       .first();
     
     if (!bondingCurve) throw new Error("Bonding curve not found");
@@ -518,7 +518,7 @@ export const recordSellTransaction = mutation({
     // Get bonding curve
     const bondingCurve = await ctx.db
       .query("bondingCurves")
-      .withIndex("byTokenId", (q) => q.eq("tokenId", args.tokenId))
+      .withIndex("by_coin", (q) => q.eq("coinId", args.tokenId))
       .first();
     
     if (!bondingCurve) throw new Error("Bonding curve not found");
@@ -613,7 +613,7 @@ export const updateBondingCurveState = internalMutation({
   handler: async (ctx, args) => {
     const bondingCurve = await ctx.db
       .query("bondingCurves")
-      .withIndex("byTokenId", (q) => q.eq("tokenId", args.tokenId))
+      .withIndex("by_coin", (q) => q.eq("coinId", args.tokenId))
       .first();
     
     if (!bondingCurve) throw new Error("Bonding curve not found");
