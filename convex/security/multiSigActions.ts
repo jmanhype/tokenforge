@@ -54,8 +54,10 @@ export const deployMultiSigWallet = internalAction({
       if (!deployTx) throw new Error("Deployment transaction not found");
       
       const receipt = await deployTx.wait();
+      if (!receipt) throw new Error("Transaction receipt not found");
+      
       const gasUsed = Number(receipt.gasUsed);
-      const gasPrice = Number(receipt.gasPrice || receipt.effectiveGasPrice);
+      const gasPrice = Number(receipt.gasPrice || 0);
       const deploymentCost = parseFloat(ethers.formatEther(BigInt(gasUsed) * BigInt(gasPrice)));
       
       // Record deployment
@@ -77,8 +79,8 @@ export const deployMultiSigWallet = internalAction({
     } catch (error) {
       console.error("MultiSig deployment error:", error);
       // Fallback to placeholder for testing
-      const placeholderAddress = "0x" + ethers.randomBytes(20).toString('hex');
-      const placeholderTxHash = "0x" + ethers.randomBytes(32).toString('hex');
+      const placeholderAddress = "0x" + Math.random().toString(16).slice(2, 42).padEnd(40, '0');
+      const placeholderTxHash = "0x" + Math.random().toString(16).slice(2, 66).padEnd(64, '0');
       
       await ctx.runMutation(internal.security.multiSigQueries.recordMultiSigDeployment, {
         tokenId: args.tokenId,
@@ -112,7 +114,7 @@ export const submitMultiSigTransaction = internalAction({
   },
   handler: async (ctx, args) => {
     // For now, return mock data
-    const mockTxHash = "0x" + ethers.randomBytes(32).toString('hex');
+    const mockTxHash = "0x" + Math.random().toString(16).slice(2, 66).padEnd(64, '0');
     const txIndex = Math.floor(Math.random() * 1000);
     
     // Record transaction
@@ -144,8 +146,8 @@ export const confirmMultiSigTransaction = internalAction({
   },
   handler: async (ctx, args) => {
     // For now, return mock data
-    const mockConfirmTxHash = "0x" + ethers.randomBytes(32).toString('hex');
-    const mockExecuteTxHash = Math.random() > 0.5 ? "0x" + ethers.randomBytes(32).toString('hex') : null;
+    const mockConfirmTxHash = "0x" + Math.random().toString(16).slice(2, 66).padEnd(64, '0');
+    const mockExecuteTxHash = Math.random() > 0.5 ? "0x" + Math.random().toString(16).slice(2, 66).padEnd(64, '0') : null;
     
     // Record confirmation
     await ctx.runMutation(internal.security.multiSigQueries.recordTransactionConfirmation, {

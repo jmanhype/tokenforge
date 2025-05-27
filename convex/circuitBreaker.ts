@@ -232,10 +232,10 @@ export const shouldAllowRequest = internalQuery({
     if (breaker.state === "open") {
       // Check if we should transition to half-open
       if (breaker.nextAttemptTime && now >= breaker.nextAttemptTime) {
-        // Transition to half-open
-        await ctx.scheduler.runAfter(0, internal.circuitBreaker.transitionToHalfOpen as any, {
-          service: args.service,
-        });
+        // Transition to half-open (commented out - scheduler not available in query context)
+        // await ctx.scheduler.runAfter(0, internal.circuitBreaker.transitionToHalfOpen as any, {
+        //   service: args.service,
+        // });
         return { allowed: true, state: "half_open" as CircuitState };
       }
       

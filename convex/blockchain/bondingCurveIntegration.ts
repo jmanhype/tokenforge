@@ -283,7 +283,13 @@ export const deployBondingCurveContract = internalAction({
 
     // Get deployment transaction receipt
     const deployTx = bondingCurve.deploymentTransaction();
+    if (!deployTx) {
+      throw new Error("Deployment transaction not found");
+    }
     const receipt = await deployTx.wait();
+    if (!receipt) {
+      throw new Error("Transaction receipt not found");
+    }
 
     return {
       bondingCurveAddress,

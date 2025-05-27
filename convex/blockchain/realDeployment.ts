@@ -5,7 +5,8 @@ import { ethers } from "ethers";
 import { Connection, Keypair, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
 import { createFungible, mintV1, mplTokenMetadata } from "@metaplex-foundation/mpl-token-metadata";
-import { createSignerFromKeypair, generateSigner, keypairIdentity, percentAmount } from "@metaplex-foundation/umi";
+import { createSignerFromKeypair, generateSigner, keypairIdentity, percentAmount, publicKey } from "@metaplex-foundation/umi";
+import { TokenStandard } from "@metaplex-foundation/mpl-token-metadata";
 // bs58 import removed - using native Solana Keypair handling
 import { MEMECOIN_ABI, MEMECOIN_BYTECODE } from "./contractData.js";
 
@@ -192,7 +193,7 @@ export const deploySolanaToken = internalAction({
     const umi = createUmi(rpcUrl)
       .use(mplTokenMetadata())
       .use(keypairIdentity({
-        publicKey: deployerKeypair.publicKey.toBase58(),
+        publicKey: publicKey(deployerKeypair.publicKey.toBase58()),
         secretKey: deployerKeypair.secretKey,
       }));
 
@@ -218,7 +219,7 @@ export const deploySolanaToken = internalAction({
       mint: mint.publicKey,
       amount: args.initialSupply * Math.pow(10, 9), // Convert to smallest unit
       tokenOwner: umi.identity.publicKey,
-      tokenStandard: { __kind: "Fungible" },
+      tokenStandard: TokenStandard.Fungible,
     }).sendAndConfirm(umi);
 
     // Record deployment

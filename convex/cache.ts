@@ -60,8 +60,8 @@ export const get = internalQuery({
 
     // Check if expired
     if (cached.expiresAt < Date.now()) {
-      // Schedule deletion
-      await ctx.scheduler.runAfter(0, internal.cache.invalidate as any, { key: args.key });
+      // Schedule deletion (commented out - scheduler not available in query context)
+      // await ctx.scheduler.runAfter(0, internal.cache.invalidate as any, { key: args.key });
       return null;
     }
 
@@ -145,12 +145,12 @@ export function cachedQuery<Args extends Record<string, any>, Result>(
       // Execute query
       const result = await queryFn(ctx, args);
 
-      // Store in cache
-      await ctx.scheduler.runAfter(0, internal.cache.set as any, {
-        key: cacheKey,
-        value: result,
-        ttl,
-      });
+      // Store in cache (commented out - scheduler not available in query context)
+      // await ctx.scheduler.runAfter(0, internal.cache.set as any, {
+      //   key: cacheKey,
+      //   value: result,
+      //   ttl,
+      // });
 
       return result;
     },

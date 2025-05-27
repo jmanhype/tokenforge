@@ -48,7 +48,10 @@ export const verifyContract = internalAction({
 
     // Determine network (always testnet for now)
     const network = args.blockchain === "ethereum" ? "sepolia" : "testnet";
-    const apiUrl = EXPLORER_APIS[args.blockchain][network];
+    const explorersForChain = EXPLORER_APIS[args.blockchain];
+    const apiUrl = args.blockchain === "ethereum" 
+      ? (explorersForChain as { mainnet: string; sepolia: string }).sepolia
+      : (explorersForChain as { mainnet: string; testnet: string }).testnet;
 
     // Get contract source code (would be stored during deployment)
     const contractSource = await getContractSourceCode(args.contractName || "MemeCoin");
@@ -162,7 +165,11 @@ function getExplorerUrl(blockchain: string, network: string): string {
     },
   };
 
-  return explorers[blockchain as keyof typeof explorers][network as keyof typeof explorers.ethereum];
+  if (blockchain === "ethereum") {
+    return (explorers.ethereum as { mainnet: string; sepolia: string })[network as "mainnet" | "sepolia"];
+  } else {
+    return (explorers.bsc as { mainnet: string; testnet: string })[network as "mainnet" | "testnet"];
+  }
 }
 
 // Check verification status
@@ -184,7 +191,10 @@ export const checkVerificationStatus = internalAction({
     }
 
     const network = args.blockchain === "ethereum" ? "sepolia" : "testnet";
-    const apiUrl = EXPLORER_APIS[args.blockchain][network];
+    const explorersForChain = EXPLORER_APIS[args.blockchain];
+    const apiUrl = args.blockchain === "ethereum" 
+      ? (explorersForChain as { mainnet: string; sepolia: string }).sepolia
+      : (explorersForChain as { mainnet: string; testnet: string }).testnet;
 
     const params = new URLSearchParams({
       apikey: apiKey,
