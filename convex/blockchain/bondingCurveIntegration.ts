@@ -4,6 +4,9 @@ import { ethers } from "ethers";
 
 // Bonding Curve Contract ABI (essential functions)
 const BONDING_CURVE_ABI = [
+  // Constructor
+  "constructor(address _token, address _feeRecipient)",
+  // Functions
   "function buy(uint256 minTokensOut) external payable returns (uint256 tokensReceived)",
   "function sell(uint256 tokenAmount, uint256 minEthOut) external returns (uint256 ethReceived)",
   "function calculateBuyReturn(uint256 ethAmount) external view returns (uint256 tokenAmount)",
@@ -246,7 +249,9 @@ export const deployBondingCurveContract = internalAction({
       ? process.env.ETHEREUM_RPC_URL 
       : process.env.BSC_RPC_URL;
     
-    const privateKey = process.env.DEPLOYER_PRIVATE_KEY;
+    const privateKey = args.blockchain === "ethereum" 
+      ? process.env.ETHEREUM_DEPLOYER_PRIVATE_KEY
+      : process.env.BSC_DEPLOYER_PRIVATE_KEY;
     
     if (!rpcUrl || !privateKey) {
       throw new Error(`Missing configuration for ${args.blockchain}`);
@@ -256,11 +261,15 @@ export const deployBondingCurveContract = internalAction({
     const signer = new ethers.Wallet(privateKey, provider);
 
     // Bonding Curve contract bytecode (compiled from BondingCurve.sol)
-    const BONDING_CURVE_BYTECODE = process.env.BONDING_CURVE_BYTECODE;
+    // Concatenate bytecode parts (split due to Convex env var size limit)
+    const bytecodePart1 = process.env.BONDING_CURVE_BYTECODE_PART1;
+    const bytecodePart2 = process.env.BONDING_CURVE_BYTECODE_PART2;
     
-    if (!BONDING_CURVE_BYTECODE) {
+    if (!bytecodePart1 || !bytecodePart2) {
       throw new Error("Bonding curve bytecode not configured");
     }
+    
+    const BONDING_CURVE_BYTECODE = bytecodePart1 + bytecodePart2;
 
     // Deploy bonding curve contract
     const BondingCurveFactory = new ethers.ContractFactory(
@@ -269,13 +278,14 @@ export const deployBondingCurveContract = internalAction({
       signer
     );
 
-    const graduationTarget = args.graduationTarget || 100; // 100 ETH default
-    const feePercent = args.feePercent || 100; // 1% default
+    // Get fee recipient address (treasury or deployer)
+    const feeRecipient = process.env.MAINNET_TREASURY_ADDRESS || 
+                        process.env.FEE_COLLECTOR_ADDRESS ||
+                        signer.address; // Default to deployer if no treasury set
 
     const bondingCurve = await BondingCurveFactory.deploy(
       args.tokenAddress,
-      ethers.parseEther(graduationTarget.toString()),
-      feePercent
+      feeRecipient
     );
 
     await bondingCurve.waitForDeployment();

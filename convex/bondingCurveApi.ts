@@ -331,3 +331,6 @@ export const getUserBalance = query({
     };
   },
 });
+
+// Alias for compatibility
+export const getBondingCurve = getCurveData;

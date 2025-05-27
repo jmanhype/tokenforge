@@ -21,7 +21,7 @@ export const initializeRevenue = internalMutation({
 
     if (!existing) {
       await ctx.db.insert("creatorRevenue", {
-        creatorId: args.creatorId as Id<"users">,
+        creatorId: args.creatorId,
         tokenId: args.tokenId,
         totalEarned: 0,
         totalWithdrawn: 0,

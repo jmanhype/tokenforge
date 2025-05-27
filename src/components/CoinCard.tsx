@@ -1,8 +1,10 @@
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { Link } from "react-router-dom";
-import { TrendingUp, Users, Activity } from "lucide-react";
+import { TrendingUp, Users, Activity, Zap } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 
 interface CoinCardProps {
   coin: {
@@ -43,10 +45,25 @@ interface CoinCardProps {
 }
 
 export function CoinCard({ coin, showAnalytics = false }: CoinCardProps) {
+  const [isDeploying, setIsDeploying] = useState(false);
+  const deployBondingCurve = useMutation(api.bondingCurve.deployBondingCurveForToken);
+  
   const analytics = useQuery(
     api.analytics.getCoinAnalytics,
     showAnalytics && coin.status === "deployed" ? { coinId: coin._id } : "skip"
   );
+
+  const handleDeployBondingCurve = async () => {
+    try {
+      setIsDeploying(true);
+      await deployBondingCurve({ coinId: coin._id });
+      toast.success("Bonding curve deployment scheduled! This may take a few minutes.");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to deploy bonding curve");
+    } finally {
+      setIsDeploying(false);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -222,7 +239,19 @@ export function CoinCard({ coin, showAnalytics = false }: CoinCardProps) {
           <span>Supply: {coin.initialSupply.toLocaleString()}</span>
         </div>
         <div className="flex gap-2">
-          {coin.bondingCurve?.isActive && (
+          {/* Deploy Bonding Curve button */}
+          {coin.status === "deployed" && coin.bondingCurve && !coin.bondingCurve.hasContract && (
+            <button
+              onClick={handleDeployBondingCurve}
+              disabled={isDeploying}
+              className="px-3 py-1 bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-sm rounded-lg hover:from-yellow-600 hover:to-orange-600 transition-all flex items-center gap-1 disabled:opacity-50"
+            >
+              <Zap className="w-3 h-3" />
+              {isDeploying ? "Deploying..." : "Deploy Trading"}
+            </button>
+          )}
+          
+          {coin.bondingCurve?.isActive && coin.bondingCurve?.hasContract && (
             <Link
               to={`/trade/${coin._id}`}
               className="px-3 py-1 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-1"
@@ -231,6 +260,7 @@ export function CoinCard({ coin, showAnalytics = false }: CoinCardProps) {
               Trade
             </Link>
           )}
+          
           {coin.status === "deployed" && (
             <Link
               to={`/analytics/${coin._id}`}
@@ -239,6 +269,7 @@ export function CoinCard({ coin, showAnalytics = false }: CoinCardProps) {
               📊 Analytics
             </Link>
           )}
+          
           {!coin.bondingCurve?.isActive && coin.status === "graduated" && (
             <span className="text-sm text-purple-600 font-medium">
               Trading on DEX

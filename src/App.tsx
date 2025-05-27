@@ -18,9 +18,36 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/trade/:coinId" element={<TradingPage />} />
-        <Route path="/analytics/:tokenId" element={<TokenAnalyticsPage />} />
-        <Route path="/monitoring" element={<MonitoringDashboard />} />
+        <Route path="/trade/:coinId" element={
+          <>
+            <Authenticated>
+              <TradingPage />
+            </Authenticated>
+            <Unauthenticated>
+              <Navigate to="/" />
+            </Unauthenticated>
+          </>
+        } />
+        <Route path="/analytics/:tokenId" element={
+          <>
+            <Authenticated>
+              <TokenAnalyticsPage />
+            </Authenticated>
+            <Unauthenticated>
+              <Navigate to="/" />
+            </Unauthenticated>
+          </>
+        } />
+        <Route path="/monitoring" element={
+          <>
+            <Authenticated>
+              <MonitoringDashboard />
+            </Authenticated>
+            <Unauthenticated>
+              <Navigate to="/" />
+            </Unauthenticated>
+          </>
+        } />
         <Route path="/*" element={<MainApp />} />
       </Routes>
       <Toaster position="top-right" />

@@ -25,8 +25,6 @@ export const listMemeCoins = query({
           .withIndex("by_coin", (q) => q.eq("coinId", coin._id))
           .first();
         
-        const creator = await ctx.db.get(coin.creatorId);
-        
         // Get bonding curve info if exists
         const bondingCurve = await ctx.db
           .query("bondingCurves")
@@ -36,7 +34,7 @@ export const listMemeCoins = query({
         return {
           ...coin,
           deployment,
-          creatorName: creator?.name || creator?.email || "Anonymous",
+          creatorName: "Anonymous", // Using anonymous since creatorId is now a string
           bondingCurve: bondingCurve ? {
             isActive: bondingCurve.isActive,
             currentPrice: bondingCurve.currentPrice,
@@ -62,11 +60,17 @@ export const getUserMemeCoins = query({
       throw new Error("Not authenticated");
     }
 
+    // Debug: Log the userId being used for the query
+    console.log("getUserMemeCoins - userId:", userId);
+    console.log("getUserMemeCoins - userId as string:", userId as string);
+
     const coins = await ctx.db
       .query("memeCoins")
-      .withIndex("by_creator", (q) => q.eq("creatorId", userId))
+      .withIndex("by_creator", (q) => q.eq("creatorId", userId as string))
       .order("desc")
       .collect();
+    
+    console.log("getUserMemeCoins - coins found:", coins.length);
 
     // Get deployment info for each coin
     const coinsWithDeployments = await Promise.all(
@@ -88,6 +92,7 @@ export const getUserMemeCoins = query({
           bondingCurve: bondingCurve ? {
             isActive: bondingCurve.isActive,
             currentPrice: bondingCurve.currentPrice,
+            hasContract: !!bondingCurve.dexPoolAddress && !bondingCurve.dexPoolAddress.startsWith('sim_'),
             marketCap: bondingCurve.currentSupply * bondingCurve.currentPrice,
             progress: (bondingCurve.currentSupply * bondingCurve.currentPrice / 100000) * 100,
             totalVolume: bondingCurve.totalVolume,
@@ -116,7 +121,7 @@ export const checkRateLimit = query({
     // Count coins created in the last 24 hours
     const recentCoins = await ctx.db
       .query("memeCoins")
-      .withIndex("by_creator", (q) => q.eq("creatorId", userId))
+      .withIndex("by_creator", (q) => q.eq("creatorId", userId as string))
       .filter((q) => q.gt(q.field("_creationTime"), oneDayAgo))
       .collect();
 
@@ -129,6 +134,97 @@ export const checkRateLimit = query({
       used: recentCoins.length,
       resetAt: oneDayAgo + 24 * 60 * 60 * 1000,
     };
+  },
+});
+
+// Helper mutation to check rate limit
+export const internalCheckRateLimit = internalMutation({
+  args: {
+    userId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const oneDayAgo = now - 24 * 60 * 60 * 1000;
+    
+    const recentCoins = await ctx.db
+      .query("memeCoins")
+      .withIndex("by_creator", (q) => q.eq("creatorId", args.userId))
+      .filter((q) => q.gt(q.field("_creationTime"), oneDayAgo))
+      .collect();
+    
+    return { count: recentCoins.length };
+  },
+});
+
+// Helper mutation to check duplicate symbol
+export const internalCheckDuplicateSymbol = internalMutation({
+  args: {
+    symbol: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const existingCoin = await ctx.db
+      .query("memeCoins")
+      .filter((q) => q.eq(q.field("symbol"), args.symbol.toUpperCase()))
+      .first();
+    
+    return { exists: !!existingCoin };
+  },
+});
+
+// Helper mutation to get or create user
+export const internalGetOrCreateUser = internalMutation({
+  args: {
+    subject: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Check if user exists
+    const existingUser = await ctx.db
+      .query("users")
+      .withIndex("by_subject", (q) => q.eq("subject", args.subject))
+      .first();
+    
+    if (existingUser) {
+      return existingUser._id;
+    }
+    
+    // Create new user
+    const userId = await ctx.db.insert("users", {
+      subject: args.subject,
+      createdAt: Date.now(),
+    });
+    
+    return userId;
+  },
+});
+
+// Helper mutation to create coin
+export const internalCreateCoinRecord = internalMutation({
+  args: {
+    name: v.string(),
+    symbol: v.string(),
+    initialSupply: v.number(),
+    canMint: v.boolean(),
+    canBurn: v.boolean(),
+    postQuantumSecurity: v.boolean(),
+    creatorId: v.string(),
+    description: v.optional(v.string()),
+    blockchain: v.union(v.literal("ethereum"), v.literal("solana"), v.literal("bsc")),
+  },
+  handler: async (ctx, args) => {
+    const coinId = await ctx.db.insert("memeCoins", {
+      name: args.name,
+      symbol: args.symbol.toUpperCase(),
+      initialSupply: args.initialSupply,
+      canMint: args.canMint,
+      canBurn: args.canBurn,
+      postQuantumSecurity: args.postQuantumSecurity,
+      creatorId: args.creatorId,
+      description: args.description,
+      status: "pending",
+      blockchain: args.blockchain,
+    });
+    
+    return coinId;
   },
 });
 
@@ -145,11 +241,18 @@ export const createMemeCoin = action({
     blockchain: v.union(v.literal("ethereum"), v.literal("solana"), v.literal("bsc")),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
+    // Use getAuthUserId to get the consistent user ID
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
       throw new Error("Not authenticated");
     }
-    const userId = identity.subject;
+    
+    // Also get identity for debugging
+    const identity = await ctx.auth.getUserIdentity();
+    
+    // Debug: Log both IDs to see the difference
+    console.log("createMemeCoin - userId from getAuthUserId:", userId);
+    console.log("createMemeCoin - identity.subject:", identity?.subject);
 
     // Validate inputs
     if (args.name.length < 2 || args.name.length > 50) {
@@ -165,26 +268,20 @@ export const createMemeCoin = action({
     }
 
     // Check rate limit
-    const now = Date.now();
-    const oneDayAgo = now - 24 * 60 * 60 * 1000;
-    
-    const recentCoins = await ctx.db
-      .query("memeCoins")
-      .withIndex("by_creator", (q) => q.eq("creatorId", userId))
-      .filter((q) => q.gt(q.field("_creationTime"), oneDayAgo))
-      .collect();
+    const rateLimitResult = await ctx.runMutation(internal.memeCoins.internalCheckRateLimit, {
+      userId: userId as string,
+    });
 
-    if (recentCoins.length >= 3) {
+    if (rateLimitResult.count >= 3) {
       throw new Error("Rate limit exceeded. You can only create 3 coins per day.");
     }
 
     // Check for duplicate symbol
-    const existingCoin = await ctx.db
-      .query("memeCoins")
-      .filter((q) => q.eq(q.field("symbol"), args.symbol.toUpperCase()))
-      .first();
+    const duplicateResult = await ctx.runMutation(internal.memeCoins.internalCheckDuplicateSymbol, {
+      symbol: args.symbol,
+    });
 
-    if (existingCoin) {
+    if (duplicateResult.exists) {
       throw new Error("A coin with this symbol already exists");
     }
 
@@ -196,23 +293,22 @@ export const createMemeCoin = action({
     });
     
     // Create the meme coin
-    const coinId = await ctx.runMutation(internal.memeCoins.createCoinRecord, {
+    const coinId = await ctx.runMutation(internal.memeCoins.internalCreateCoinRecord, {
       name: args.name,
       symbol: args.symbol.toUpperCase(),
       initialSupply: args.initialSupply,
       canMint: args.canMint,
       canBurn: args.canBurn,
       postQuantumSecurity: args.postQuantumSecurity,
-      creatorId: userId,
+      creatorId: userId as string, // Convert ID to string for schema compatibility
       description: args.description,
-      status: "pending",
       blockchain: args.blockchain,
     });
     
     // Record fee collection after coin creation
     if (feeData.fee > 0) {
       await ctx.runMutation(internal.fees.feeManager.recordFeeCollection, {
-        userId,
+        userId: userId as string,
         tokenId: coinId,
         feeType: 0, // TOKEN_CREATION
         amount: feeData.fee,
@@ -241,7 +337,7 @@ export const createMemeCoin = action({
     // Initialize revenue tracking for the creator
     await ctx.runMutation(internal.revenue.creatorRevenue.initializeRevenue, {
       tokenId: coinId,
-      creatorId: userId,
+      creatorId: userId as string,
       blockchain: args.blockchain,
     });
 
@@ -314,8 +410,6 @@ export const getCoinDetails = query({
       .withIndex("by_coin", (q) => q.eq("coinId", args.coinId))
       .first();
 
-    const creator = await ctx.db.get(coin.creatorId);
-
     // Get latest analytics
     const analytics = await ctx.db
       .query("analytics")
@@ -327,7 +421,7 @@ export const getCoinDetails = query({
       ...coin,
       deployment,
       analytics,
-      creatorName: creator?.name || creator?.email || "Anonymous",
+      creatorName: "Anonymous", // Using anonymous since creatorId is now a string
     };
   },
 });
@@ -457,7 +551,7 @@ export const getByContractAddress = internalQuery({
 });
 
 // Internal mutation to create coin record
-export const createCoinRecord = internalMutation({
+export const internalCreateCoinRecordOld = internalMutation({
   args: {
     name: v.string(),
     symbol: v.string(),
@@ -481,6 +575,34 @@ export const createCoinRecord = internalMutation({
       description: args.description,
       status: "pending",
     });
+  },
+});
+
+// Debug query to inspect all coins and their creators
+export const debugAllCoins = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    console.log("debugAllCoins - current userId:", userId);
+    
+    const allCoins = await ctx.db
+      .query("memeCoins")
+      .order("desc")
+      .take(10);
+    
+    const coinsWithInfo = allCoins.map(coin => ({
+      _id: coin._id,
+      name: coin.name,
+      symbol: coin.symbol,
+      creatorId: coin.creatorId,
+      status: coin.status,
+      _creationTime: coin._creationTime,
+    }));
+    
+    return {
+      currentUserId: userId,
+      coins: coinsWithInfo,
+    };
   },
 });
 

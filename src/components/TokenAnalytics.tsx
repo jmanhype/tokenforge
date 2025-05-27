@@ -65,24 +65,19 @@ export default function TokenAnalytics({ tokenId }: TokenAnalyticsProps) {
   const metrics = useMemo(() => {
     if (!analytics || !token) return null;
 
-    const latestData = analytics.data[analytics.data.length - 1];
-    const firstData = analytics.data[0];
-    
-    const priceChange = latestData && firstData 
-      ? ((latestData.price - firstData.price) / firstData.price) * 100
-      : 0;
-      
-    const volumeTotal = analytics.data.reduce((sum, d) => sum + d.volume24h, 0);
+    // Use the metrics directly from the analytics response
+    const analyticsMetrics = analytics.metrics;
+    if (!analyticsMetrics) return null;
     
     return {
-      currentPrice: latestData?.price || 0,
-      priceChange,
-      marketCap: latestData?.marketCap || 0,
-      volume24h: latestData?.volume24h || 0,
-      volumeTotal,
-      holders: latestData?.holders || 0,
-      transactions: analytics.data.reduce((sum, d) => sum + d.transactions24h, 0),
-      avgTransactionSize: volumeTotal / (analytics.data.reduce((sum, d) => sum + d.transactions24h, 0) || 1),
+      currentPrice: analyticsMetrics.price || 0,
+      priceChange: analyticsMetrics.priceChange24h || 0,
+      marketCap: analyticsMetrics.marketCap || 0,
+      volume24h: analyticsMetrics.volume24h || 0,
+      volumeTotal: analyticsMetrics.volume24h || 0, // Use 24h volume as total for now
+      holders: analyticsMetrics.holders || 0,
+      transactions: analyticsMetrics.transactions24h || 0,
+      avgTransactionSize: (analyticsMetrics.volume24h || 0) / (analyticsMetrics.transactions24h || 1),
     };
   }, [analytics, token]);
 
@@ -94,13 +89,13 @@ export default function TokenAnalytics({ tokenId }: TokenAnalyticsProps) {
     );
   }
 
-  const chartData = analytics.data.map(d => ({
+  const chartData = analytics.charts?.price?.map((d: any) => ({
     time: new Date(d.timestamp).toLocaleDateString(),
     price: d.price,
-    volume: d.volume24h,
-    holders: d.holders,
-    marketCap: d.marketCap,
-  }));
+    volume: analytics.charts?.volume?.find((v: any) => v.timestamp === d.timestamp)?.volume || 0,
+    holders: analytics.charts?.holders?.find((h: any) => h.timestamp === d.timestamp)?.holders || 0,
+    marketCap: d.price * (analytics.metrics?.totalSupply || 1000000000),
+  })) || [];
 
   const pieData = holderDistribution ? [
     { name: "Top 10", value: holderDistribution.top10Percentage, color: "#8884d8" },
@@ -283,11 +278,11 @@ export default function TokenAnalytics({ tokenId }: TokenAnalyticsProps) {
               <div className="mt-4 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Largest Holder</span>
-                  <span className="font-medium">{holderDistribution.largestHolder.toFixed(2)}%</span>
+                  <span className="font-medium">{(holderDistribution.largestHolder || 0).toFixed(2)}%</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Gini Coefficient</span>
-                  <span className="font-medium">{holderDistribution.giniCoefficient.toFixed(3)}</span>
+                  <span className="font-medium">{(holderDistribution.giniCoefficient || 0).toFixed(3)}</span>
                 </div>
               </div>
             </>
@@ -326,7 +321,7 @@ export default function TokenAnalytics({ tokenId }: TokenAnalyticsProps) {
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-green-600">
-                    {socialMetrics.sentimentScore.toFixed(0)}%
+                    {(socialMetrics.sentimentScore || 0).toFixed(0)}%
                   </p>
                   <p className="text-sm text-gray-600">Positive Sentiment</p>
                 </div>
@@ -379,7 +374,7 @@ export default function TokenAnalytics({ tokenId }: TokenAnalyticsProps) {
                       {formatNumber(trade.tokenAmount)}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                      ${trade.price.toFixed(6)}
+                      ${(trade.price || 0).toFixed(6)}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                       ${formatNumber(trade.ethAmount)}
@@ -409,30 +404,30 @@ export default function TokenAnalytics({ tokenId }: TokenAnalyticsProps) {
               <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
                 <div 
                   className="bg-indigo-600 h-2.5 rounded-full" 
-                  style={{ width: `${Math.min((bondingCurve.currentSupply / 800000000) * 100, 100)}%` }}
+                  style={{ width: `${Math.min(((bondingCurve.currentSupply || 0) / 800000000) * 100, 100)}%` }}
                 ></div>
               </div>
               <p className="text-xs text-gray-500">
-                {((bondingCurve.currentSupply / 800000000) * 100).toFixed(1)}% Complete
+                {(((bondingCurve.currentSupply || 0) / 800000000) * 100).toFixed(1)}% Complete
               </p>
             </div>
             
             <div className="text-center">
               <p className="text-sm text-gray-600 mb-1">Reserve Balance</p>
               <p className="text-2xl font-bold text-gray-900">
-                {bondingCurve.reserveBalance.toFixed(4)} ETH
+                {(bondingCurve.reserveBalance || 0).toFixed(4)} ETH
               </p>
             </div>
             
             <div className="text-center">
               <p className="text-sm text-gray-600 mb-1">Current Price</p>
               <p className="text-2xl font-bold text-indigo-600">
-                ${bondingCurve.currentPrice.toFixed(6)}
+                ${(bondingCurve.currentPrice || 0).toFixed(6)}
               </p>
             </div>
           </div>
           
-          {bondingCurve.isActive && bondingCurve.currentSupply >= 800000000 * 0.9 && (
+          {bondingCurve.isActive && (bondingCurve.currentSupply || 0) >= 800000000 * 0.9 && (
             <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
               <div className="flex items-center gap-2">
                 <AlertCircle className="w-5 h-5 text-yellow-600" />
