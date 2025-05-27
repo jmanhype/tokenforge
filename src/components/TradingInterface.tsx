@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
@@ -50,14 +50,6 @@ export default function TradingInterface({ coinId }: TradingInterfaceProps) {
     api.bondingCurve.getUserHoldings,
     user ? { coinId, userId: user._id } : "skip"
   );
-  
-  // Check fair launch restrictions
-  const fairLaunchCheck = useQuery(
-    api.fairLaunch.checkPurchaseAllowed,
-    user && amount && parseFloat(amount) > 0 && tradeType === "buy" && buyPreview
-      ? { tokenId: coinId, buyer: user.email || "", amount: buyPreview.tokensReceived }
-      : "skip"
-  );
 
   // Calculate buy/sell amounts
   const buyPreview = useQuery(
@@ -73,10 +65,19 @@ export default function TradingInterface({ coinId }: TradingInterfaceProps) {
       ? { tokenId: coinId, tokenAmount: parseFloat(amount) }
       : "skip"
   );
+  
+  // Check fair launch restrictions
+  const fairLaunchCheck = useQuery(
+    api.fairLaunch.checkPurchaseAllowed,
+    user && amount && parseFloat(amount) > 0 && tradeType === "buy" && buyPreview
+      ? { tokenId: coinId, buyer: user.email || "", amount: buyPreview.tokensOut || buyPreview.tokensReceived || 0 }
+      : "skip"
+  );
 
-  // Trading mutations
-  const buyTokens = useMutation(api.bondingCurve.buyTokens);
-  const sellTokens = useMutation(api.bondingCurve.sellTokens);
+
+  // Trading actions
+  const buyTokens = useAction(api.bondingCurve.buyTokens);
+  const sellTokens = useAction(api.bondingCurve.sellTokens);
 
   // Check wallet connection on mount
   useEffect(() => {
@@ -119,7 +120,10 @@ export default function TradingInterface({ coinId }: TradingInterfaceProps) {
       return;
     }
 
-    if (!walletConnected) {
+    // Check if this is simulated trading
+    const isSimulated = !bondingCurve.dexPoolAddress || bondingCurve.dexPoolAddress.startsWith('sim_');
+
+    if (!isSimulated && !walletConnected) {
       toast.error("Please connect your wallet first");
       return;
     }
@@ -134,58 +138,80 @@ export default function TradingInterface({ coinId }: TradingInterfaceProps) {
           ethAmount: parseFloat(amount),
         });
 
-        // Execute blockchain transaction
-        const txHash = await web3Service.executeTransaction(result.txData);
-        
-        toast.success(
-          <div>
-            <p>Successfully bought ~{result.expectedTokens} {coin.symbol}</p>
-            <a 
-              href={`https://sepolia.etherscan.io/tx/${txHash}`} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-blue-500 underline text-sm"
-            >
-              View transaction
-            </a>
-          </div>
-        );
-      } else {
-        // For sell, need to approve token first
-        const deployment = await api.memeCoins.getDeployment({ coinId });
-        if (!deployment || !bondingCurve.contractAddress) {
-          throw new Error("Contract addresses not found");
+        // Execute blockchain transaction or handle simulated
+        let txHash;
+        if (result.txData.simulated) {
+          txHash = result.txData.txHash;
+          toast.success(
+            <div>
+              <p>Successfully bought ~{result.expectedTokens} {coin.symbol}</p>
+              <p className="text-sm text-gray-500">Simulated transaction: {txHash}</p>
+            </div>
+          );
+        } else {
+          txHash = await web3Service.executeTransaction(result.txData);
+          toast.success(
+            <div>
+              <p>Successfully bought ~{result.expectedTokens} {coin.symbol}</p>
+              <a 
+                href={`https://sepolia.etherscan.io/tx/${txHash}`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-500 underline text-sm"
+              >
+                View transaction
+              </a>
+            </div>
+          );
         }
-
-        // Approve bonding curve to spend tokens
-        await web3Service.approveToken(
-          deployment.contractAddress,
-          bondingCurve.contractAddress,
-          amount
-        );
-
+      } else {
         // Get sell transaction data
         const result = await sellTokens({
           tokenId: coinId,
           tokenAmount: parseFloat(amount),
         });
-
-        // Execute blockchain transaction
-        const txHash = await web3Service.executeTransaction(result.txData);
         
-        toast.success(
-          <div>
-            <p>Successfully sold for ~{result.expectedEth} ETH</p>
-            <a 
-              href={`https://sepolia.etherscan.io/tx/${txHash}`} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-blue-500 underline text-sm"
-            >
-              View transaction
-            </a>
-          </div>
-        );
+        // Only handle approval for non-simulated trades
+        if (!result.txData.simulated) {
+          const deployment = await api.memeCoins.getDeployment({ coinId });
+          if (!deployment || !bondingCurve.dexPoolAddress) {
+            throw new Error("Contract addresses not found");
+          }
+
+          // Approve bonding curve to spend tokens
+          await web3Service.approveToken(
+            deployment.contractAddress,
+            bondingCurve.dexPoolAddress,
+            amount
+          );
+        }
+
+        // Execute blockchain transaction or handle simulated
+        let txHash;
+        if (result.txData.simulated) {
+          txHash = result.txData.txHash;
+          toast.success(
+            <div>
+              <p>Successfully sold for ~{result.expectedEth} ETH</p>
+              <p className="text-sm text-gray-500">Simulated transaction: {txHash}</p>
+            </div>
+          );
+        } else {
+          txHash = await web3Service.executeTransaction(result.txData);
+          toast.success(
+            <div>
+              <p>Successfully sold for ~{result.expectedEth} ETH</p>
+              <a 
+                href={`https://sepolia.etherscan.io/tx/${txHash}`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-500 underline text-sm"
+              >
+                View transaction
+              </a>
+            </div>
+          );
+        }
       }
       setAmount("");
     } catch (error: any) {
@@ -256,6 +282,17 @@ export default function TradingInterface({ coinId }: TradingInterfaceProps) {
 
         {/* Trading Form */}
         <div className="p-6">
+          {/* Simulated Trading Notice */}
+          {bondingCurve.dexPoolAddress?.startsWith('sim_') && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-2">
+              <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-blue-800">
+                <p className="font-medium">Simulated Trading Mode</p>
+                <p>This token is using simulated trading for development/testing. No real blockchain transactions will occur.</p>
+              </div>
+            </div>
+          )}
+          
           {/* Trade Type Selector */}
           <div className="flex gap-2 mb-6">
             <button
@@ -311,24 +348,24 @@ export default function TradingInterface({ coinId }: TradingInterfaceProps) {
                 <span className="text-sm text-gray-600">You will receive</span>
                 <span className="font-medium">
                   {tradeType === "buy"
-                    ? `${(buyPreview?.tokensOut || 0).toLocaleString()} ${coin.symbol}`
-                    : `${(sellPreview?.amountOut || 0).toFixed(4)} ETH`}
+                    ? `${((buyPreview?.tokensOut || buyPreview?.tokensReceived || 0) || 0).toLocaleString()} ${coin.symbol}`
+                    : `${((sellPreview?.amountOut || sellPreview?.ethReceived || 0) || 0).toFixed(4)} ETH`}
                 </span>
               </div>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm text-gray-600">Average Price</span>
                 <span className="font-medium">
-                  ${(tradeType === "buy" ? buyPreview?.avgPrice : sellPreview?.avgPrice || 0).toFixed(6)}
+                  ${((tradeType === "buy" ? buyPreview?.avgPrice : sellPreview?.avgPrice) || 0).toFixed(6)}
                 </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Price Impact</span>
                 <span className={`font-medium ${
-                  (tradeType === "buy" ? buyPreview?.priceImpact : sellPreview?.priceImpact || 0) > 5
+                  ((tradeType === "buy" ? buyPreview?.priceImpact : sellPreview?.priceImpact) || 0) > 5
                     ? "text-red-600"
                     : "text-green-600"
                 }`}>
-                  {(tradeType === "buy" ? buyPreview?.priceImpact : sellPreview?.priceImpact || 0).toFixed(2)}%
+                  {((tradeType === "buy" ? buyPreview?.priceImpact : sellPreview?.priceImpact) || 0).toFixed(2)}%
                 </span>
               </div>
             </div>
@@ -376,7 +413,7 @@ export default function TradingInterface({ coinId }: TradingInterfaceProps) {
           )}
 
           {/* Trade Button */}
-          {!walletConnected ? (
+          {!walletConnected && (!bondingCurve.dexPoolAddress || !bondingCurve.dexPoolAddress.startsWith('sim_')) ? (
             <button
               onClick={connectWallet}
               className="w-full py-4 rounded-lg font-bold text-white bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 transition-all flex items-center justify-center gap-2"
@@ -407,7 +444,7 @@ export default function TradingInterface({ coinId }: TradingInterfaceProps) {
 
           {/* High Price Impact Warning */}
           {amount && parseFloat(amount) > 0 && 
-           (tradeType === "buy" ? buyPreview?.priceImpact : sellPreview?.priceImpact || 0) > 5 && (
+           ((tradeType === "buy" ? buyPreview?.priceImpact : sellPreview?.priceImpact) || 0) > 5 && (
             <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
               <div className="text-sm text-red-800">

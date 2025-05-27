@@ -1,0 +1,60 @@
+{
+  "mcpServers": {
+    "neon-server": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@neondatabase/mcp-server-neon",
+        "start",
+        "napi_ctcjmic0tobrl04904dwx7qgpyfn96nl5l9ss8b1le4qlgz3816x6y2wnfejtgek"
+      ],
+      "env": {}
+    },
+    "browser-tools": {
+      "type": "stdio",
+      "command": "/opt/homebrew/bin/node",
+      "args": [
+        "/Users/speed/.npm/_npx/dcd6f0de5842aab6/node_modules/@agentdeskai/browser-tools-mcp/dist/mcp-server.js",
+        "run"
+      ],
+      "env": {}
+    },
+    "github": {
+      "type": "stdio",
+      "command": "/Users/speed/github-mcp-server/github-mcp-server",
+      "args": [
+        "stdio"
+      ],
+      "env": {}
+    },
+    "taskmaster-ai": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "--package=task-master-ai",
+        "task-master-ai"
+      ],
+      "env": {}
+    },
+    "exa": {
+      "type": "stdio",
+      "command": "/opt/homebrew/bin/npx",
+      "args": [
+        "exa-mcp-server"
+      ],
+      "env": {}
+    },
+    "web-eval-agent": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/Operative-Sh/web-eval-agent.git",
+        "webEvalAgent"
+      ],
+      "env": {}
+    }
+  }
+}

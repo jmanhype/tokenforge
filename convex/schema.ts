@@ -11,11 +11,12 @@ const applicationTables = {
     canMint: v.boolean(),
     canBurn: v.boolean(),
     postQuantumSecurity: v.boolean(),
-    creatorId: v.id("users"),
+    creatorId: v.string(), // Temporarily back to string until migration
     description: v.optional(v.string()),
     logoUrl: v.optional(v.string()),
     status: v.union(v.literal("pending"), v.literal("deployed"), v.literal("failed"), v.literal("graduated")),
     multiSigWallet: v.optional(v.string()),
+    blockchain: v.optional(v.union(v.literal("ethereum"), v.literal("solana"), v.literal("bsc"))), // Added for compatibility
   })
     .index("by_creator", ["creatorId"])
     .index("by_status", ["status"]),
@@ -113,7 +114,8 @@ const applicationTables = {
   })
     .index("by_curve", ["bondingCurveId"])
     .index("by_user", ["user"])
-    .index("by_timestamp", ["timestamp"]),
+    .index("by_timestamp", ["timestamp"])
+    .index("by_curve_user", ["bondingCurveId", "user"]),
   
   // Bonding curve token holders
   bondingCurveHolders: defineTable({
@@ -608,7 +610,7 @@ const applicationTables = {
 
   // Creator revenue tracking
   creatorRevenue: defineTable({
-    creatorId: v.id("users"),
+    creatorId: v.string(), // Changed to string to match memeCoins
     tokenId: v.id("memeCoins"),
     totalEarned: v.number(),
     totalWithdrawn: v.number(),
@@ -621,7 +623,7 @@ const applicationTables = {
 
   // Revenue transactions
   revenueTransactions: defineTable({
-    creatorId: v.id("users"),
+    creatorId: v.string(), // Changed to string to match memeCoins
     tokenId: v.id("memeCoins"),
     type: v.union(
       v.literal("trading_fee"),
@@ -661,7 +663,7 @@ const applicationTables = {
 
   // Withdrawal requests
   withdrawalRequests: defineTable({
-    creatorId: v.id("users"),
+    creatorId: v.string(), // Changed to string to match memeCoins
     amount: v.number(),
     status: v.union(
       v.literal("pending"),

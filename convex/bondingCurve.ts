@@ -41,7 +41,7 @@ export const initializeBondingCurve = mutation({
       createdAt: Date.now(),
     });
     
-    // Schedule bonding curve contract deployment
+    // Schedule bonding curve deployment
     await ctx.scheduler.runAfter(0, internal.bondingCurve.deployBondingCurveContract, {
       bondingCurveId,
       coinId: args.coinId,
@@ -53,7 +53,7 @@ export const initializeBondingCurve = mutation({
 });
 
 // Deploy bonding curve smart contract (internal action)
-export const deployBondingCurveContract: any = action({
+export const deployBondingCurveContract = action({
   args: {
     bondingCurveId: v.id("bondingCurves"),
     coinId: v.id("memeCoins"),
@@ -69,17 +69,9 @@ export const deployBondingCurveContract: any = action({
     }
     
     // Deploy bonding curve contract
-    const result = await ctx.runAction(internal.blockchain.bondingCurveDeployment.deployBondingCurve, {
+    const result = await ctx.runAction(internal.blockchain.bondingCurveIntegration.deployBondingCurveContract, {
       tokenAddress: deployment.contractAddress,
       tokenId: args.coinId,
-      blockchain: deployment.blockchain,
-    });
-    
-    // Initialize bonding curve with tokens
-    await ctx.runAction(internal.blockchain.bondingCurveDeployment.initializeBondingCurve, {
-      bondingCurveAddress: result.bondingCurveAddress,
-      tokenAddress: deployment.contractAddress,
-      initialSupply: args.initialSupply * 0.4, // 40% of supply for bonding curve
       blockchain: deployment.blockchain,
     });
     
@@ -141,7 +133,7 @@ export const recordBondingCurveDeployment = internalMutation({
 });
 
 // Execute buy order on bonding curve
-export const buyTokens: any = action({
+export const buyTokens = action({
   args: {
     tokenId: v.id("memeCoins"),
     ethAmount: v.number(),
@@ -159,8 +151,9 @@ export const buyTokens: any = action({
       throw new Error("Bonding curve not active");
     }
 
-    if (!bondingCurve.contractAddress) {
-      throw new Error("Bonding curve contract not deployed");
+    // Check if bonding curve contract is deployed
+    if (!bondingCurve.dexPoolAddress || bondingCurve.dexPoolAddress.startsWith('sim_')) {
+      throw new Error("Bonding curve contract not deployed. Please deploy it first.");
     }
     
     // Calculate buy amount using bonding curve formula
@@ -180,7 +173,7 @@ export const buyTokens: any = action({
     
     // Get transaction data for frontend execution
     const txData = await ctx.runAction(internal.blockchain.bondingCurveIntegration.executeBondingCurveBuy, {
-      bondingCurveAddress: bondingCurve.contractAddress,
+      bondingCurveAddress: bondingCurve.dexPoolAddress,
       tokenId: args.tokenId,
       blockchain: deployment.blockchain,
       buyer: userId.subject,
@@ -199,7 +192,7 @@ export const buyTokens: any = action({
 });
 
 // Execute sell order on bonding curve
-export const sellTokens: any = action({
+export const sellTokens = action({
   args: {
     tokenId: v.id("memeCoins"),
     tokenAmount: v.number(),
@@ -217,8 +210,9 @@ export const sellTokens: any = action({
       throw new Error("Bonding curve not active");
     }
 
-    if (!bondingCurve.contractAddress) {
-      throw new Error("Bonding curve contract not deployed");
+    // Check if bonding curve contract is deployed
+    if (!bondingCurve.dexPoolAddress || bondingCurve.dexPoolAddress.startsWith('sim_')) {
+      throw new Error("Bonding curve contract not deployed. Please deploy it first.");
     }
     
     // Calculate sell return using bonding curve formula
@@ -238,7 +232,7 @@ export const sellTokens: any = action({
     
     // Get transaction data for frontend execution
     const txData = await ctx.runAction(internal.blockchain.bondingCurveIntegration.executeBondingCurveSell, {
-      bondingCurveAddress: bondingCurve.contractAddress,
+      bondingCurveAddress: bondingCurve.dexPoolAddress,
       tokenId: args.tokenId,
       blockchain: deployment.blockchain,
       seller: userId.subject,
@@ -659,5 +653,159 @@ export const reset24hVolume = internalMutation({
         // Remove previousDayVolume as it's not in schema
       });
     }
+  },
+});
+
+// Get user holdings for all bonding curves
+export const getAllUserHoldings = query({
+  args: {
+    coinId: v.optional(v.id("memeCoins")),
+    userId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return [];
+    }
+
+    // Get all holdings for this user
+    const holdings = await ctx.db
+      .query("bondingCurveHolders")
+      .withIndex("by_user", (q) => q.eq("user", identity.tokenIdentifier))
+      .collect();
+
+    // Get bonding curve and coin data for each holding
+    const holdingsWithData = await Promise.all(
+      holdings.map(async (holding) => {
+        const bondingCurve = await ctx.db.get(holding.bondingCurveId);
+        if (!bondingCurve) return null;
+
+        // Filter by coinId if specified
+        if (args.coinId && bondingCurve.coinId !== args.coinId) {
+          return null;
+        }
+
+        const coin = await ctx.db.get(bondingCurve.coinId);
+        if (!coin) return null;
+
+        return {
+          ...holding,
+          bondingCurve,
+          coin,
+          currentValue: holding.balance * bondingCurve.currentPrice,
+        };
+      })
+    );
+
+    return holdingsWithData.filter(Boolean);
+  },
+});
+
+// Deploy bonding curve for an existing token
+export const deployBondingCurveForToken = mutation({
+  args: {
+    coinId: v.id("memeCoins"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    
+    // Get the coin to verify ownership
+    const coin = await ctx.db.get(args.coinId);
+    if (!coin) throw new Error("Coin not found");
+    if (coin.creatorId !== userId) throw new Error("Not authorized");
+    
+    // Get the bonding curve
+    const bondingCurve = await ctx.db
+      .query("bondingCurves")
+      .withIndex("by_coin", (q) => q.eq("coinId", args.coinId))
+      .first();
+    
+    if (!bondingCurve) throw new Error("Bonding curve not found");
+    
+    // Check if already deployed
+    if (bondingCurve.dexPoolAddress && !bondingCurve.dexPoolAddress.startsWith('sim_')) {
+      throw new Error("Bonding curve already deployed");
+    }
+    
+    // Schedule deployment
+    await ctx.scheduler.runAfter(0, internal.bondingCurve.deployBondingCurveContract, {
+      bondingCurveId: bondingCurve._id,
+      coinId: args.coinId,
+      initialSupply: coin.initialSupply,
+    });
+    
+    return { success: true, message: "Bonding curve deployment scheduled" };
+  },
+});
+
+// Get user holdings for a specific coin (returns single object for TradingInterface)
+export const getUserHoldings = query({
+  args: {
+    coinId: v.optional(v.id("memeCoins")),
+    userId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return null;
+    }
+
+    if (!args.coinId) {
+      return null;
+    }
+
+    // Get bonding curve for this coin
+    const bondingCurve = await ctx.db
+      .query("bondingCurves")
+      .withIndex("by_coin", (q) => q.eq("coinId", args.coinId))
+      .first();
+    
+    if (!bondingCurve) {
+      return null;
+    }
+
+    // Get user's holding for this bonding curve
+    const holding = await ctx.db
+      .query("bondingCurveHolders")
+      .withIndex("by_curve_user", (q) => 
+        q.eq("bondingCurveId", bondingCurve._id).eq("user", identity.tokenIdentifier)
+      )
+      .first();
+
+    if (!holding || holding.balance <= 0) {
+      return null;
+    }
+
+    // Calculate average buy price and P&L
+    const transactions = await ctx.db
+      .query("bondingCurveTransactions")
+      .withIndex("by_curve_user", (q) => 
+        q.eq("bondingCurveId", bondingCurve._id).eq("user", identity.tokenIdentifier)
+      )
+      .collect();
+
+    let totalCost = 0;
+    let totalBought = 0;
+    
+    for (const tx of transactions) {
+      if (tx.type === "buy") {
+        totalCost += tx.amountIn || 0;
+        totalBought += tx.tokensOut || 0;
+      }
+    }
+
+    const averageBuyPrice = totalBought > 0 ? totalCost / totalBought : 0;
+    const currentValue = holding.balance * bondingCurve.currentPrice;
+    const unrealizedPnL = currentValue - (holding.balance * averageBuyPrice);
+    const unrealizedPnLPercent = averageBuyPrice > 0 ? (unrealizedPnL / (holding.balance * averageBuyPrice)) * 100 : 0;
+
+    return {
+      balance: holding.balance,
+      currentValue,
+      averageBuyPrice,
+      unrealizedPnL,
+      unrealizedPnLPercent,
+    };
   },
 });

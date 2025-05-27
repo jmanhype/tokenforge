@@ -34,6 +34,9 @@ vi.mock('../../convex/_generated/api', () => ({
     analytics: {
       getCoinAnalytics: 'analytics.getCoinAnalytics',
     },
+    bondingCurve: {
+      deployBondingCurveForToken: 'bondingCurve.deployBondingCurveForToken',
+    },
     monitoringApi: {
       getSystemHealth: 'monitoringApi.getSystemHealth',
       getRecentAlerts: 'monitoringApi.getRecentAlerts',
