@@ -326,6 +326,120 @@ export const updateTokenAnalytics = internalMutation({
 });
 
 // Fetch real-time analytics data from blockchain
+// Get trade history for a token
+export const getTradeHistory = query({
+  args: {
+    tokenId: v.id("memeCoins"),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 50;
+    
+    // Get bonding curve transactions
+    const bondingCurve = await ctx.db
+      .query("bondingCurves")
+      .withIndex("by_coin", (q) => q.eq("coinId", args.tokenId))
+      .first();
+    
+    if (!bondingCurve) {
+      return [];
+    }
+    
+    const transactions = await ctx.db
+      .query("bondingCurveTransactions")
+      .withIndex("by_curve", (q) => q.eq("bondingCurveId", bondingCurve._id))
+      .order("desc")
+      .take(limit);
+    
+    return transactions.map((tx) => ({
+      type: tx.type,
+      price: tx.price,
+      amount: tx.type === "buy" ? tx.tokensOut : tx.tokensIn,
+      value: tx.type === "buy" ? tx.amountIn : tx.amountOut,
+      timestamp: tx.timestamp,
+      user: tx.user,
+    }));
+  },
+});
+
+// Get holder distribution
+export const getHolderDistribution = query({
+  args: {
+    tokenId: v.id("memeCoins"),
+  },
+  handler: async (ctx, args) => {
+    const bondingCurve = await ctx.db
+      .query("bondingCurves")
+      .withIndex("by_coin", (q) => q.eq("coinId", args.tokenId))
+      .first();
+    
+    if (!bondingCurve) {
+      return [];
+    }
+    
+    const holders = await ctx.db
+      .query("bondingCurveHolders")
+      .withIndex("by_curve", (q) => q.eq("bondingCurveId", bondingCurve._id))
+      .collect();
+    
+    // Group holders by balance range
+    const ranges = [
+      { label: "0-100", min: 0, max: 100 },
+      { label: "100-1K", min: 100, max: 1000 },
+      { label: "1K-10K", min: 1000, max: 10000 },
+      { label: "10K-100K", min: 10000, max: 100000 },
+      { label: "100K+", min: 100000, max: Infinity },
+    ];
+    
+    const distribution = ranges.map((range) => ({
+      range: range.label,
+      count: holders.filter((h) => h.balance >= range.min && h.balance < range.max).length,
+    }));
+    
+    return distribution;
+  },
+});
+
+// Get social metrics
+export const getSocialMetrics = query({
+  args: {
+    tokenId: v.id("memeCoins"),
+  },
+  handler: async (ctx, args) => {
+    const socialShares = await ctx.db
+      .query("socialShares")
+      .withIndex("by_coin", (q) => q.eq("coinId", args.tokenId))
+      .collect();
+    
+    const comments = await ctx.db
+      .query("tokenComments")
+      .withIndex("by_token", (q) => q.eq("tokenId", args.tokenId))
+      .collect();
+    
+    const reactions = await ctx.db
+      .query("tokenReactions")
+      .withIndex("by_token", (q) => q.eq("tokenId", args.tokenId))
+      .collect();
+    
+    return {
+      totalShares: socialShares.length,
+      totalComments: comments.length,
+      totalReactions: reactions.length,
+      platforms: {
+        twitter: socialShares.filter((s) => s.platform === "twitter").length,
+        telegram: socialShares.filter((s) => s.platform === "telegram").length,
+        discord: socialShares.filter((s) => s.platform === "discord").length,
+      },
+      reactionCounts: {
+        rocket: reactions.filter((r) => r.reaction === "rocket").length,
+        fire: reactions.filter((r) => r.reaction === "fire").length,
+        gem: reactions.filter((r) => r.reaction === "gem").length,
+        moon: reactions.filter((r) => r.reaction === "moon").length,
+      },
+    };
+  },
+});
+
 export const fetchRealTimeAnalytics = internalAction({
   args: {
     coinId: v.id("memeCoins"),

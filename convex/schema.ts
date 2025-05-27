@@ -74,7 +74,7 @@ const applicationTables = {
   // Bonding curve state for each token
   bondingCurves: defineTable({
     coinId: v.id("memeCoins"),
-    tokenId: v.id("memeCoins"), // Added for compatibility
+    tokenId: v.optional(v.id("memeCoins")), // Made optional for backward compatibility
     currentSupply: v.number(),
     currentPrice: v.number(),
     reserveBalance: v.number(),
