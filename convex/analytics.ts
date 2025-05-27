@@ -412,12 +412,12 @@ export const getSocialMetrics = query({
       .collect();
     
     const comments = await ctx.db
-      .query("tokenComments")
+      .query("comments")
       .withIndex("by_token", (q) => q.eq("tokenId", args.tokenId))
       .collect();
     
     const reactions = await ctx.db
-      .query("tokenReactions")
+      .query("reactions")
       .withIndex("by_token", (q) => q.eq("tokenId", args.tokenId))
       .collect();
     
@@ -431,10 +431,12 @@ export const getSocialMetrics = query({
         discord: socialShares.filter((s) => s.platform === "discord").length,
       },
       reactionCounts: {
-        rocket: reactions.filter((r) => r.reaction === "rocket").length,
-        fire: reactions.filter((r) => r.reaction === "fire").length,
-        gem: reactions.filter((r) => r.reaction === "gem").length,
-        moon: reactions.filter((r) => r.reaction === "moon").length,
+        rocket: reactions.filter((r) => r.type === "rocket").length,
+        fire: reactions.filter((r) => r.type === "fire").length,
+        diamond: reactions.filter((r) => r.type === "diamond").length,
+        moon: reactions.filter((r) => r.type === "moon").length,
+        trash: reactions.filter((r) => r.type === "trash").length,
+        bear: reactions.filter((r) => r.type === "bear").length,
       },
     };
   },
