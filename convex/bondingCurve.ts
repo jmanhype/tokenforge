@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, action, internalMutation, internalQuery } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { internal, api } from "./_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
 
 // Initialize bonding curve for a newly deployed token
@@ -53,7 +53,7 @@ export const initializeBondingCurve = mutation({
 });
 
 // Deploy bonding curve smart contract (internal action)
-export const deployBondingCurveContract = action({
+export const deployBondingCurveContract: any = action({
   args: {
     bondingCurveId: v.id("bondingCurves"),
     coinId: v.id("memeCoins"),
@@ -141,7 +141,7 @@ export const recordBondingCurveDeployment = internalMutation({
 });
 
 // Execute buy order on bonding curve
-export const buyTokens = action({
+export const buyTokens: any = action({
   args: {
     tokenId: v.id("memeCoins"),
     ethAmount: v.number(),
@@ -199,7 +199,7 @@ export const buyTokens = action({
 });
 
 // Execute sell order on bonding curve
-export const sellTokens = action({
+export const sellTokens: any = action({
   args: {
     tokenId: v.id("memeCoins"),
     tokenAmount: v.number(),
@@ -320,7 +320,7 @@ export const calculateBuyAmount = query({
     
     // Calculate tokens out using numerical integration
     let tokensOut = 0;
-    let remainingAmount = amountInUSD;
+    let remainingAmount = args.amountInUSD;
     let tempSupply = currentSupply;
     const step = 1000; // 1000 tokens per step
     
@@ -340,7 +340,7 @@ export const calculateBuyAmount = query({
       }
     }
     
-    const avgPrice = amountInUSD / tokensOut;
+    const avgPrice = args.amountInUSD / tokensOut;
     const newSupply = currentSupply + tokensOut;
     const newPrice = k * Math.pow(newSupply / 1e9, n);
     
@@ -656,7 +656,7 @@ export const reset24hVolume = internalMutation({
       // Store current volume as previous 24h volume
       await ctx.db.patch(curve._id, {
         volume24h: 0,
-        previousDayVolume: curve.volume24h || 0,
+        // Remove previousDayVolume as it's not in schema
       });
     }
   },

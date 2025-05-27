@@ -77,7 +77,7 @@ export const getMainnetConfig = query({
     // Validate configuration
     const isConfigured = args.blockchain === "solana" 
       ? !!networkConfig.rpcUrl
-      : !!networkConfig.rpcUrl && !!networkConfig.contracts.feeCollector;
+      : !!networkConfig.rpcUrl && !!(networkConfig as any).contracts?.feeCollector;
     
     return {
       ...networkConfig,

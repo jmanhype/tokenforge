@@ -126,8 +126,7 @@ export const getTokenAnalytics = query({
           .query("analytics")
           .withIndex("by_coin", (q) => q.eq("coinId", args.tokenId))
           .order("desc")
-          .take(20)
-          .collect();
+          .take(20);
         
         // Mock event data structure for now
         const eventData = { events: [] as any[] };
