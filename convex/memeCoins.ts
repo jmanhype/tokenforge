@@ -132,6 +132,71 @@ export const checkRateLimit = query({
   },
 });
 
+// Helper mutation to check rate limit
+export const checkRateLimit = internalMutation({
+  args: {
+    userId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const oneDayAgo = now - 24 * 60 * 60 * 1000;
+    
+    const recentCoins = await ctx.db
+      .query("memeCoins")
+      .withIndex("by_creator", (q) => q.eq("creatorId", args.userId))
+      .filter((q) => q.gt(q.field("_creationTime"), oneDayAgo))
+      .collect();
+    
+    return { count: recentCoins.length };
+  },
+});
+
+// Helper mutation to check duplicate symbol
+export const checkDuplicateSymbol = internalMutation({
+  args: {
+    symbol: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const existingCoin = await ctx.db
+      .query("memeCoins")
+      .filter((q) => q.eq(q.field("symbol"), args.symbol.toUpperCase()))
+      .first();
+    
+    return { exists: !!existingCoin };
+  },
+});
+
+// Helper mutation to create coin
+export const createCoinRecord = internalMutation({
+  args: {
+    name: v.string(),
+    symbol: v.string(),
+    initialSupply: v.number(),
+    canMint: v.boolean(),
+    canBurn: v.boolean(),
+    postQuantumSecurity: v.boolean(),
+    creatorId: v.string(),
+    description: v.optional(v.string()),
+    blockchain: v.union(v.literal("ethereum"), v.literal("solana"), v.literal("bsc")),
+  },
+  handler: async (ctx, args) => {
+    const coinId = await ctx.db.insert("memeCoins", {
+      name: args.name,
+      symbol: args.symbol.toUpperCase(),
+      initialSupply: args.initialSupply,
+      canMint: args.canMint,
+      canBurn: args.canBurn,
+      postQuantumSecurity: args.postQuantumSecurity,
+      creatorId: args.creatorId,
+      description: args.description,
+      status: "pending",
+      blockchain: args.blockchain,
+    });
+    
+    return coinId;
+  },
+});
+
 // Create a new meme coin
 export const createMemeCoin = action({
   args: {
@@ -165,26 +230,20 @@ export const createMemeCoin = action({
     }
 
     // Check rate limit
-    const now = Date.now();
-    const oneDayAgo = now - 24 * 60 * 60 * 1000;
-    
-    const recentCoins = await ctx.db
-      .query("memeCoins")
-      .withIndex("by_creator", (q) => q.eq("creatorId", userId))
-      .filter((q) => q.gt(q.field("_creationTime"), oneDayAgo))
-      .collect();
+    const rateLimitResult = await ctx.runMutation(internal.memeCoins.checkRateLimit, {
+      userId,
+    });
 
-    if (recentCoins.length >= 3) {
+    if (rateLimitResult.count >= 3) {
       throw new Error("Rate limit exceeded. You can only create 3 coins per day.");
     }
 
     // Check for duplicate symbol
-    const existingCoin = await ctx.db
-      .query("memeCoins")
-      .filter((q) => q.eq(q.field("symbol"), args.symbol.toUpperCase()))
-      .first();
+    const duplicateResult = await ctx.runMutation(internal.memeCoins.checkDuplicateSymbol, {
+      symbol: args.symbol,
+    });
 
-    if (existingCoin) {
+    if (duplicateResult.exists) {
       throw new Error("A coin with this symbol already exists");
     }
 
