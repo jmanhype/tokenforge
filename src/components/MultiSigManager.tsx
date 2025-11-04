@@ -19,40 +19,46 @@ export function MultiSigManager({ tokenId, isOwner }: MultiSigManagerProps) {
   const [isDeploying, setIsDeploying] = useState(false);
   const [owners, setOwners] = useState<string[]>(["", ""]);
   const [requiredConfirmations, setRequiredConfirmations] = useState(2);
-  
+  const [currentUserAddress, setCurrentUserAddress] = useState<string>("");
+
   const multiSigWallet = useQuery(api.security.multiSig.getMultiSigWallet, { tokenId });
   const pendingTransactions = useQuery(api.security.multiSig.getPendingTransactions, {
     multiSigAddress: multiSigWallet?.address || "",
   });
-  
+  const tokenData = useQuery(api.memeCoins.get, { id: tokenId });
+
   const deployMultiSig = useAction(api.security.multiSig.deployMultiSigWallet);
   const confirmTransaction = useAction(api.security.multiSig.confirmMultiSigTransaction);
   
   const handleDeploy = async () => {
     const validOwners = owners.filter(o => o.trim().length === 42 && o.startsWith("0x"));
-    
+
     if (validOwners.length < 2) {
       toast.error("At least 2 valid owner addresses required");
       return;
     }
-    
+
     if (requiredConfirmations < 1 || requiredConfirmations > validOwners.length) {
       toast.error("Invalid number of required confirmations");
       return;
     }
-    
+
+    // Get blockchain from token deployment data
+    const blockchain = tokenData?.blockchain || "ethereum";
+
     setIsDeploying(true);
     try {
       const result = await deployMultiSig({
         tokenId,
         owners: validOwners,
         requiredConfirmations,
-        blockchain: "ethereum", // TODO: Get from token deployment
+        blockchain,
       });
-      
+
       toast.success("Multi-sig wallet deployed successfully!");
     } catch (error) {
-      console.error("Failed to deploy multi-sig:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error("Failed to deploy multi-sig:", errorMessage);
       toast.error("Failed to deploy multi-sig wallet");
     } finally {
       setIsDeploying(false);
@@ -61,22 +67,29 @@ export function MultiSigManager({ tokenId, isOwner }: MultiSigManagerProps) {
   
   const handleConfirm = async (txIndex: number) => {
     if (!multiSigWallet) return;
-    
+
+    // Get blockchain from token deployment data
+    const blockchain = tokenData?.blockchain || "ethereum";
+
+    // Get current user's address from wallet or use first owner as fallback
+    const confirmerAddress = currentUserAddress || multiSigWallet.owners[0];
+
     try {
       const result = await confirmTransaction({
         multiSigAddress: multiSigWallet.address,
         txIndex,
-        blockchain: "ethereum", // TODO: Get from deployment
-        confirmer: "owner1", // TODO: Get current user's owner ID
+        blockchain,
+        confirmer: confirmerAddress,
       });
-      
+
       if (result.executed) {
         toast.success("Transaction executed successfully!");
       } else {
         toast.success("Transaction confirmed");
       }
     } catch (error) {
-      console.error("Failed to confirm transaction:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error("Failed to confirm transaction:", errorMessage);
       toast.error("Failed to confirm transaction");
     }
   };
@@ -192,7 +205,10 @@ export function MultiSigManager({ tokenId, isOwner }: MultiSigManagerProps) {
                       <Button
                         size="sm"
                         onClick={() => handleConfirm(tx.txIndex)}
-                        disabled={tx.confirmations.some(c => c.confirmer === "owner1")} // TODO: Check current user
+                        disabled={tx.confirmations.some(c =>
+                          c.confirmer === currentUserAddress ||
+                          (currentUserAddress === "" && c.confirmer === multiSigWallet?.owners[0])
+                        )}
                       >
                         Confirm
                       </Button>

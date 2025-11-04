@@ -93,20 +93,33 @@ export const blockchainRpcLatency = new Histogram({
   registers: [register],
 });
 
+interface Request {
+  route?: { path?: string };
+  path?: string;
+  method: string;
+}
+
+interface Response {
+  on: (event: string, callback: () => void) => void;
+  statusCode: number;
+}
+
+type NextFunction = () => void;
+
 // Express middleware to track HTTP metrics
-export const httpMetricsMiddleware = (req: any, res: any, next: any) => {
+export const httpMetricsMiddleware = (req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
-  
+
   res.on('finish', () => {
     const duration = (Date.now() - start) / 1000;
     const route = req.route?.path || req.path || 'unknown';
     const method = req.method;
     const status = res.statusCode.toString();
-    
+
     httpRequestsTotal.labels(method, route, status).inc();
     httpRequestDuration.labels(method, route, status).observe(duration);
   });
-  
+
   next();
 };
 
@@ -238,7 +251,7 @@ export interface LogContext {
   requestId?: string;
   blockchain?: string;
   coinId?: string;
-  [key: string]: any;
+  [key: string]: string | number | boolean | undefined;
 }
 
 export class Logger {
@@ -248,7 +261,7 @@ export class Logger {
     this.context = context;
   }
   
-  private formatMessage(level: string, message: string, meta?: any) {
+  private formatMessage(level: string, message: string, meta?: Record<string, unknown>) {
     return {
       timestamp: new Date().toISOString(),
       level,
@@ -257,16 +270,16 @@ export class Logger {
       ...meta,
     };
   }
-  
-  info(message: string, meta?: any) {
+
+  info(message: string, meta?: Record<string, unknown>) {
     console.log(JSON.stringify(this.formatMessage('info', message, meta)));
   }
-  
-  warn(message: string, meta?: any) {
+
+  warn(message: string, meta?: Record<string, unknown>) {
     console.warn(JSON.stringify(this.formatMessage('warn', message, meta)));
   }
-  
-  error(message: string, error?: Error, meta?: any) {
+
+  error(message: string, error?: Error, meta?: Record<string, unknown>) {
     console.error(JSON.stringify(this.formatMessage('error', message, {
       ...meta,
       error: error ? {
@@ -276,8 +289,8 @@ export class Logger {
       } : undefined,
     })));
   }
-  
-  debug(message: string, meta?: any) {
+
+  debug(message: string, meta?: Record<string, unknown>) {
     if (process.env.LOG_LEVEL === 'debug') {
       console.debug(JSON.stringify(this.formatMessage('debug', message, meta)));
     }
