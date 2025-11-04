@@ -1,6 +1,18 @@
 import { ethers } from "ethers";
 import { toast } from "sonner";
 
+interface ChainConfig {
+  chainId: string;
+  chainName: string;
+  nativeCurrency: {
+    name: string;
+    symbol: string;
+    decimals: number;
+  };
+  rpcUrls: string[];
+  blockExplorerUrls: string[];
+}
+
 // Token ABI for approval
 const ERC20_ABI = [
   "function approve(address spender, uint256 amount) external returns (bool)",
@@ -8,9 +20,15 @@ const ERC20_ABI = [
   "function balanceOf(address account) external view returns (uint256)",
 ];
 
+interface EthereumProvider {
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+  on: (event: string, callback: (...args: unknown[]) => void) => void;
+  removeListener?: (event: string, callback: (...args: unknown[]) => void) => void;
+}
+
 declare global {
   interface Window {
-    ethereum?: any;
+    ethereum?: EthereumProvider;
   }
 }
 
@@ -47,8 +65,9 @@ export class Web3Service {
       });
 
       return address;
-    } catch (error: any) {
-      throw new Error(error.message || "Failed to connect wallet");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to connect wallet";
+      throw new Error(message);
     }
   }
 
@@ -77,9 +96,10 @@ export class Web3Service {
         method: "wallet_switchEthereumChain",
         params: [{ chainId: chainIdHex }],
       });
-    } catch (error: any) {
+    } catch (error) {
       // This error code indicates that the chain has not been added to MetaMask
-      if (error.code === 4902) {
+      const errorCode = (error as { code?: number }).code;
+      if (errorCode === 4902) {
         const chainConfig = this.getChainConfig(chainId);
         if (!chainConfig) throw new Error("Unsupported chain");
 
@@ -97,8 +117,8 @@ export class Web3Service {
     }
   }
 
-  private getChainConfig(chainId: number) {
-    const configs: Record<number, any> = {
+  private getChainConfig(chainId: number): ChainConfig | undefined {
+    const configs: Record<number, ChainConfig> = {
       11155111: { // Sepolia
         chainId: "0xaa36a7",
         chainName: "Sepolia Testnet",
@@ -168,11 +188,13 @@ export class Web3Service {
       }
 
       return receipt.hash;
-    } catch (error: any) {
-      if (error.code === "ACTION_REJECTED") {
+    } catch (error) {
+      const errorCode = (error as { code?: string }).code;
+      if (errorCode === "ACTION_REJECTED") {
         throw new Error("Transaction rejected by user");
       }
-      throw new Error(error.message || "Transaction failed");
+      const message = error instanceof Error ? error.message : "Transaction failed";
+      throw new Error(message);
     }
   }
 

@@ -2,8 +2,16 @@ import { v } from "convex/values";
 import { internalAction, internalQuery } from "../_generated/server";
 import { internal, api } from "../_generated/api";
 
+interface TokenPriceData {
+  price: number;
+  marketCap: number;
+  supply: number;
+  reserveBalance: number;
+  isGraduated: boolean;
+}
+
 // Fetch real price data from blockchain
-export const fetchTokenPrice: any = internalAction({
+export const fetchTokenPrice = internalAction({
   args: {
     tokenId: v.id("memeCoins"),
     contractAddress: v.string(),
@@ -23,18 +31,34 @@ export const fetchTokenPrice: any = internalAction({
       blockchain: args.blockchain as "ethereum" | "bsc",
     });
 
-    return {
+    const result: TokenPriceData = {
       price: parseFloat(state.currentPrice),
       marketCap: state.marketCap,
       supply: parseFloat(state.tokenSupply),
       reserveBalance: parseFloat(state.reserveBalance),
       isGraduated: state.isGraduated,
     };
+
+    return result;
   },
 });
 
+interface TradingEventData {
+  volume24h: number;
+  transactions24h: number;
+  holders: number;
+  lastBlock: number;
+  events: Array<{
+    type: string;
+    buyer?: string;
+    ethSpent?: string;
+    ethReceived?: string;
+    blockNumber: number;
+  }>;
+}
+
 // Fetch trading events from blockchain
-export const fetchTradingEvents: any = internalAction({
+export const fetchTradingEvents = internalAction({
   args: {
     tokenId: v.id("memeCoins"),
     bondingCurveAddress: v.string(),
@@ -71,18 +95,29 @@ export const fetchTradingEvents: any = internalAction({
       }
     }
 
-    return {
+    const result: TradingEventData = {
       volume24h,
       transactions24h,
       holders: uniqueBuyers.size,
       lastBlock: events.lastBlock,
       events: events.events,
     };
+
+    return result;
   },
 });
 
+interface AnalyticsUpdateResult {
+  price: number;
+  marketCap: number;
+  volume24h: number;
+  holders: number;
+  transactions24h: number;
+  priceChange24h: number;
+}
+
 // Update analytics with real blockchain data
-export const updateAnalyticsFromBlockchain: any = internalAction({
+export const updateAnalyticsFromBlockchain = internalAction({
   args: {
     tokenId: v.id("memeCoins"),
   },
